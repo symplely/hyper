@@ -1,0 +1,231 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Async\Tests;
+
+use Async\Request\AsyncStream;
+use Psr\Http\Message\StreamInterface;
+use PHPUnit\Framework\TestCase;
+
+class AsyncStreamTest extends TestCase
+{
+	protected function setUp(): void
+    {
+        \coroutine_clear();
+    }
+
+	public function testConstructorThrowsExceptionOnInvalidArgument(){
+		$this->expectException(\InvalidArgumentException::class);
+
+		/** @noinspection PhpParamsInspection */
+		new AsyncStream(true);
+    }
+
+    public function taskConstructorInitializesProperties()
+    {
+        $stream = yield AsyncStream::create('data');
+        $this->assertTrue($stream->isReadable());
+        $this->assertTrue($stream->isWritable());
+        $this->assertTrue($stream->isSeekable());
+        $this->assertEquals('php://temp', $stream->getMetadata('uri'));
+        $this->assertIsArray($stream->getMetadata());
+        $this->assertEquals(4, $stream->getSize());
+        $this->assertFalse($stream->eof());
+        $stream->close();
+    }
+
+    public function testConstructorInitializesProperties()
+    {
+        \coroutine_run($this->taskConstructorInitializesProperties());
+    }
+
+    public function testStreamClosesHandleOnDestruct()
+    {
+        $handle = fopen('php://temp', 'r');
+        $stream = AsyncStream::createFromResource($handle);
+        unset($stream);
+        $this->assertFalse(is_resource($handle));
+    }
+
+    public function taskConvertsToString()
+    {
+        $stream = yield AsyncStream::create('data');
+        $this->assertEquals('data', yield $stream->__toString());
+        $stream->close();
+    }
+
+    public function testConvertsToString()
+    {
+        \coroutine_run($this->taskConvertsToString());
+    }
+
+    public function taskGetsContents()
+    {
+        $handle = fopen('php://temp', 'w+');
+        fwrite($handle, 'data');
+        $stream = AsyncStream::createFromResource($handle);
+        $this->assertEquals('', yield $stream->getContents());
+        $stream->seek(0);
+        $this->assertEquals('data', yield $stream->getContents());
+        $this->assertEquals('', yield $stream->getContents());
+    }
+
+    public function testGetsContents()
+    {
+        \coroutine_run($this->taskGetsContents());
+    }
+
+    public function taskChecksEof()
+    {
+        $handle = fopen('php://temp', 'w+');
+        fwrite($handle, 'data');
+        $stream = new AsyncStream($handle);
+        $this->assertFalse($stream->eof());
+        yield $stream->read(4);
+        $this->assertTrue($stream->eof());
+        $stream->close();
+    }
+
+    public function testChecksEof()
+    {
+        \coroutine_run($this->taskChecksEof());
+    }
+
+    public function testGetSize()
+    {
+        $size = filesize(__FILE__);
+        $handle = fopen(__FILE__, 'r');
+        $stream = AsyncStream::createFromResource($handle);
+        $this->assertEquals($size, $stream->getSize());
+        // Load from cache
+        $this->assertEquals($size, $stream->getSize());
+        $stream->close();
+    }
+
+    public function taskEnsuresSizeIsConsistent()
+    {
+        $h = fopen('php://temp', 'w+');
+        $this->assertEquals(3, fwrite($h, 'foo'));
+        $stream = AsyncStream::createFromResource($h);
+        $this->assertEquals(3, $stream->getSize());
+        $this->assertEquals(4, yield $stream->write('test'));
+        $this->assertEquals(7, $stream->getSize());
+        $this->assertEquals(7, $stream->getSize());
+        $stream->close();
+    }
+
+    public function testEnsuresSizeIsConsistent()
+    {
+        \coroutine_run($this->taskEnsuresSizeIsConsistent());
+    }
+
+    public function taskProvidesStreamPosition()
+    {
+        $handle = fopen('php://temp', 'w+');
+        $stream = AsyncStream::createFromResource($handle);
+        $this->assertEquals(0, $stream->tell());
+        yield $stream->write('foo');
+        $this->assertEquals(3, $stream->tell());
+        $stream->seek(1);
+        $this->assertEquals(1, $stream->tell());
+        $this->assertSame(ftell($handle), $stream->tell());
+        $stream->close();
+    }
+
+    public function testProvidesStreamPosition()
+    {
+        \coroutine_run($this->taskProvidesStreamPosition());
+    }
+
+    public function testCloseClearProperties()
+    {
+        $handle = fopen('php://temp', 'r+');
+        $stream = AsyncStream::createFromResource($handle);
+        $stream->close();
+
+        $this->assertFalse($stream->isSeekable());
+        $this->assertFalse($stream->isReadable());
+        $this->assertFalse($stream->isWritable());
+        $this->assertNull($stream->getSize());
+        $this->assertEmpty($stream->getMetadata());
+    }
+
+    public function taskCanDetachStream()
+    {
+        $r = fopen('php://temp', 'w+');
+        $stream = AsyncStream::createFromResource($r);
+        yield $stream->write('foo');
+
+        $this->assertTrue($stream->isReadable());
+        $this->assertSame($r, $stream->detach());
+
+        $stream->detach();
+
+        $this->assertFalse($stream->isReadable());
+        $this->assertFalse($stream->isWritable());
+        $this->assertFalse($stream->isSeekable());
+
+        $throws = function (callable $fn) use ($stream) {
+            try {
+                $fn($stream);
+                $this->fail();
+            } catch (\Exception $e) {
+                // Suppress the exception
+            }
+        };
+
+        $throws(function (StreamInterface $stream) { yield $stream->read(10); });
+        $throws(function (StreamInterface $stream) { yield $stream->write('bar'); });
+        $throws(function (StreamInterface $stream) { $stream->seek(10); });
+        $throws(function (StreamInterface $stream) { $stream->tell(); });
+        $throws(function (StreamInterface $stream) { $stream->eof(); });
+        $throws(function (StreamInterface $stream) { $stream->getSize(); });
+        $throws(function (StreamInterface $stream) { yield $stream->getContents(); });
+
+        $this->assertSame('', (string) $stream);
+        $stream->close();
+    }
+
+    public function testCanDetachStream()
+    {
+        \coroutine_run($this->taskCanDetachStream());
+    }
+
+	public function taskStreamReadingWithZeroLength(){
+		$r      = fopen('php://temp', 'r');
+		$stream = new AsyncStream($r);
+
+		$this->assertSame('', yield $stream->read(0));
+
+		$stream->close();
+	}
+
+    public function testStreamReadingWithZeroLength()
+    {
+        \coroutine_run($this->taskStreamReadingWithZeroLength());
+    }
+
+	public function taskStreamReadingWithNegativeLength(){
+		$this->expectException(\RuntimeException::class);
+		$this->expectExceptionMessage('Length parameter cannot be negative');
+
+		$r = fopen('php://temp', 'r');
+		$stream = new AsyncStream($r);
+
+		try {
+			yield $stream->read(-1);
+		} catch(\Exception $e) {
+			$stream->close();
+			/** @noinspection PhpUnhandledExceptionInspection */
+			throw $e;
+		}
+
+		$stream->close();
+    }
+
+    public function testStreamReadingWithNegativeLength()
+    {
+        \coroutine_run($this->taskStreamReadingWithNegativeLength());
+    }
+}

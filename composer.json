@@ -1,0 +1,42 @@
+{
+    "name": "symplely/hyper",
+    "description": "An asynchronous PSR-7 and PSR-18 Http client using coroutines.",
+	"keywords": ["coroutine", "yield", "http", "request", "client", "generator", "http", "PSR-7", "PSR-18", "message", "async"],
+    "homepage": "https://github.com/symplely/http-client",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Lawrence Stubbs",
+            "email": "lstubbs@techno.express"
+        }
+    ],
+    "require": {
+        "php": ">7.1",
+        "symplely/http": "^1.0.0",
+        "symplely/coroutine": "^1.1.0"
+    },
+    "autoload": {
+        "files": [
+            "Request/Core.php"
+        ],
+        "psr-4": {
+			"Async\\Request\\": "Request/"
+		}
+    },
+    "require-dev": {
+        "phpunit/phpunit": ">5.7"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Async\\Tests\\": "tests/"
+        }
+    },
+    "provide": {
+		"psr/http-client-implementation": "1.0",
+        "psr/http-message-implementation": "1.0"
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit --bootstrap vendor/autoload.php tests"
+    }
+}
