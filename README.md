@@ -2,6 +2,8 @@
 
 A simple asynchronous PSR-18 HTTP client using coroutines.
 
+**This package is under development, all `asynchronous` parts has not been fully implemented. The proper `async` way to make PSR-18 `request`/calls or handle `response`/results, not tested, nor added.**
+
 ## Installation
 
 ```text
