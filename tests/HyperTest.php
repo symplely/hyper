@@ -8,24 +8,26 @@ use Async\Request\Body;
 use Async\Request\Hyper;
 use Async\Request\Request;
 use Async\Request\Response;
+use Psr\Http\Client\ClientExceptionInterface;
 use PHPUnit\Framework\TestCase;
 
 class HyperTest extends TestCase
 {
-    const TARGET_URL = "https://en3zitz4h8r6o.x.pipedream.net";
+    const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net";
     //const TARGET_URL = "https://httpbin.org/";
     protected $http;
 
 	protected function setUp(): void
     {
         \coroutine_clear();
+        $this->http = new Hyper;
     }
 
     public function test_get_response_received()
     {
         $http = new Hyper;
 
-        $response = $http->get(self::TARGET_URL);
+        $response = yield $http->get(self::TARGET_URL);
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', $response->getBody()->getContents());
@@ -37,10 +39,10 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->post(self::TARGET_URL, Body::json(['name' => 'Symplely Hyper']));
+        $response = yield $http->post(self::TARGET_URL, Body::json(['name' => 'Symplely Hyper']));
 
         $this->assertEquals(201, $response->getStatusCode());
-        $this->assertEquals('{"success":true}', $response->getBody()->getContents());
+        $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
         $this->assertTrue($response->hasHeader("Content-Type"));
         $this->assertEquals("Content-Type: application/json", $response->getHeaderLine("Content-Type"));
     }
@@ -49,7 +51,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->patch(self::TARGET_URL, new BufferBody("foo"));
+        $response = yield $http->patch(self::TARGET_URL, new BufferBody("foo"));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', $response->getBody()->getContents());
@@ -61,7 +63,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->put(self::TARGET_URL, new BufferBody("foo"));
+        $response = yield $http->put(self::TARGET_URL, new BufferBody("foo"));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', $response->getBody()->getContents());
@@ -73,7 +75,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->delete(self::TARGET_URL);
+        $response = yield $http->delete(self::TARGET_URL);
 
         $this->assertEquals(204, $response->getStatusCode());
         $this->assertEquals("", $response->getBody()->getContents());
@@ -83,7 +85,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->head(self::TARGET_URL);
+        $response = yield $http->head(self::TARGET_URL);
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals("", $response->getBody()->getContents());
@@ -93,7 +95,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->options(self::TARGET_URL);
+        $response = yield $http->options(self::TARGET_URL);
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals("", $response->getBody()->getContents());
@@ -103,7 +105,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->get(self::TARGET_URL);
+        $response = yield $http->get(self::TARGET_URL);
 
         $this->assertTrue($response->hasHeader('X-Powered-By'));
         $this->assertEquals('PHP/' . \PHP_VERSION, $response->getHeader('X-Powered-By')[0]);
@@ -113,7 +115,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = $http->get(self::TARGET_URL, [], [
+        $response = yield $http->get(self::TARGET_URL, [], [
             'X-Added-Header' => 'Capsule!',
         ]);
 
@@ -162,7 +164,7 @@ class HyperTest extends TestCase
 	public function testRequest(string $method, array $extra_headers){
 
 		try{
-			$response = $this->http->request(
+			$response = yield $this->http->request(
 				$method,
 				'https://httpbin.org/'.$method, [
 				    ['foo' => 'bar'],
@@ -205,7 +207,7 @@ class HyperTest extends TestCase
     {
 		$this->expectException(ClientExceptionInterface::class);
 
-		$this->http->sendRequest(new Request(Request::METHOD_GET, 'http://foo'));
+		yield $this->http->sendRequest(new Request(Request::METHOD_GET, 'http://foo'));
     }
 
     public function get_statuses($websites)
@@ -235,10 +237,8 @@ class HyperTest extends TestCase
         $this->assertFalse($response);
         $response = yield \head_uri($url);
         \clear_uri();
-        $this->assertCount(3, $response);
-        [$meta, $status, $retry] = $response;
-        $this->assertEquals('array', \is_type($meta));
-        $this->assertEquals('bool', \is_type($retry));
+        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $response);
+        $status = $response->getStatusCode();
         $this->assertEquals(200, $status);
         return $status;
     }

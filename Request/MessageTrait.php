@@ -6,6 +6,7 @@ namespace Async\Request;
 
 use Async\Request\AsyncStream;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\MessageInterface;
 
 /**
  * Trait Message
@@ -17,7 +18,7 @@ trait MessageTrait
     /**
      * @inheritDoc
      */
-    public function getHeaderLine($name)
+    public function getHeaderLine($name): string 
     {
         $header = $this->getHeader($name);
 

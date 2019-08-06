@@ -190,12 +190,19 @@ class Hyper implements HyperInterface
         return $response;
     }
 
-    public function request($method, $url, $body = null, array ...$headerOptions): ResponseInterface
+    public function request($method, $url, $body = null, array ...$headerOptions)
     {
-        [$headers, $options] = $headerOptions;
+        if (isset($headerOptions[0]) && isset($headerOptions[1]))
+            [$headers, $options] = $headerOptions;
+        elseif (isset($headerOptions[0]))
+            [$headers, $options] = [$headerOptions, null];
+        else
+            [$headers, $options] = null;
+
         // Build out URI instance
         if (!$url instanceof UriInterface) {
-            $url = new Uri($url);
+            $url = Uri::create($url);
+            var_dump($url);
         }
 
         // Create a new Request
@@ -204,7 +211,7 @@ class Hyper implements HyperInterface
 			->withUri($url);
 
         // Set default HTTP version
-        $request = $request->withProtocolVersion($this->options['protocol_version']);
+        $request = $request->withProtocolVersion((string) $this->options['protocol_version']);
 
         // Add in default headers to request.
         if (!empty($this->headerOptions['headers'])) {
@@ -253,7 +260,7 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function sendRequest(RequestInterface $request): ResponseInterface
+    public function sendRequest(RequestInterface $request)
     {
         return $this->send($request);
     }
@@ -277,6 +284,7 @@ class Hyper implements HyperInterface
             $context['http']['content'] = yield $request->getBody()->__toString();
         }
 
+        print_r($request);
         $resource = @\fopen($request->getUri()->__toString(), 'rb', false, \stream_context_create($context));
 
         if (!\is_resource($resource)) {
@@ -373,20 +381,22 @@ class Hyper implements HyperInterface
     protected function authorization(array $authorize): string
     {
         $authorization = '';
-        if ($authorize['type'] =='basic' && !empty($authorize['username']) && !empty($authorize['password'])) {
-            $authorization = 'Basic ' . \base64_encode($authorize['username'] . ':' . $authorize['password']);
-        } elseif ($authorize['type'] =='bearer' && !empty($authorize['token'])) {
-            $authorization = 'Bearer ' . $authorize['token'];
-        } elseif ($authorize['type']=='digest' && !empty($authorize['username'])) {
-            $authorization = 'Digest ';
-            foreach ($authorize as $k => $v) {
-                if (empty($k) || empty($v))
-                    continue;
+        if (isset($authorize['type'])) {
+            if ($authorize['type'] =='basic' && !empty($authorize['username']) && !empty($authorize['password'])) {
+                $authorization = 'Basic ' . \base64_encode($authorize['username'] . ':' . $authorize['password']);
+            } elseif ($authorize['type'] =='bearer' && !empty($authorize['token'])) {
+                $authorization = 'Bearer ' . $authorize['token'];
+            } elseif ($authorize['type']=='digest' && !empty($authorize['username'])) {
+                $authorization = 'Digest ';
+                foreach ($authorize as $k => $v) {
+                    if (empty($k) || empty($v))
+                        continue;
 
-                if ($k == 'password')
-                    continue;
+                    if ($k == 'password')
+                        continue;
 
-                $authorization .= $k . '="' . $v . '", ';
+                    $authorization .= $k . '="' . $v . '", ';
+                }
             }
         }
 
@@ -403,7 +413,7 @@ class Hyper implements HyperInterface
             $authorize = null;
         }
 
-        [$headers, $options] = $headersOptions;
+        [$headers, $options] = (isset($headersOptions[0])) ? $headersOptions : null;
 		return [['headers' => [ $authorize, $headers]], $options];
     }
 
@@ -416,5 +426,10 @@ class Hyper implements HyperInterface
         $this->instance -null;
         $this->meta = [];
         $this->parameters = [];
+    }
+
+	public function close()
+	{
+        $this->flush();
 	}
 }

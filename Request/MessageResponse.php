@@ -11,7 +11,7 @@ use Async\Request\MessageTrait;
  *
  * @package Async\Request\MessageResponse
  */
-abstract class MessageResponse extends Async\Http\Response
+abstract class MessageResponse extends \Async\Http\Response
 {
     use MessageTrait;
 }

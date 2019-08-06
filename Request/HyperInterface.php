@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Async\Request;
 
 use Psr\Http\Client\ClientInterface;
-use Psr\Http\Client\ResponseInterface;
+use Psr\Http\Message\ResponseInterface;
 use Fig\Http\Message\RequestMethodInterface;
 
-interface HyperInterface extends ClientInterface, RequestMethodInterface
+interface HyperInterface extends RequestMethodInterface
 {
     /**
      * @param string $url - URI for the request.
@@ -82,5 +82,5 @@ interface HyperInterface extends ClientInterface, RequestMethodInterface
      *
      * @return ResponseInterface
      */
-    public function request($method, $url, $body = null, array ...$headerOptions): ResponseInterface;
+    public function request($method, $url, $body = null, array ...$headerOptions);
 }

@@ -3,8 +3,8 @@
 declare(strict_types = 1);
 
 use Async\Request\BodyInterface;
-use Async\Request\Client;
-use Async\Request\ClientRequestInterface;
+use Async\Request\Hyper;
+use Async\Request\HyperInterface;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -87,15 +87,15 @@ if (!\function_exists('create_uri')) {
 	\define('TYPE_JSON', BodyInterface::JSON_TYPE);
 	\define('TYPE_FORM', BodyInterface::FORM_TYPE);
 
-	function create_uri(string $tag = null): ClientRequestInterface
+	function create_uri(string $tag = null): HyperInterface
 	{
 		global $__uri__, $__uriTag__;
 
         if (empty($tag)) {
-            if (!$__uri__ instanceof ClientRequestInterface)
-                $__uri__ = new Client;
-        } elseif (!isset($__uriTag__[$tag]) || !$__uriTag__[$tag] instanceof ClientRequestInterface) {
-            $__uriTag__[$tag] = new Client;
+            if (!$__uri__ instanceof HyperInterface)
+                $__uri__ = new Hyper;
+        } elseif (!isset($__uriTag__[$tag]) || !$__uriTag__[$tag] instanceof HyperInterface) {
+            $__uriTag__[$tag] = new Hyper;
         }
 
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
@@ -106,13 +106,13 @@ if (!\function_exists('create_uri')) {
         global $__uri__, $__uriTag__;
 
         if (empty($tag)) {
-            if ($__uri__ instanceof ClientRequestInterface)
+            if ($__uri__ instanceof HyperInterface)
                 $__uri__->close();
 
             $__uri__ = null;
             unset($GLOBALS['__uri__']);
         } else {
-            if (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof ClientRequestInterface)
+            if (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface)
                 $__uriTag__[$tag]->close();
 
             $__uriTag__[$tag] = null;
@@ -165,7 +165,7 @@ if (!\function_exists('create_uri')) {
 
         [$url, $instance, $options] = \tagOptionsSplit($tagUri, $options);
 
-        if (isset($instance) && $instance instanceof ClientRequestInterface) {
+        if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->head($url, $options);
 
             return $response;
