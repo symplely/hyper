@@ -202,7 +202,6 @@ class Hyper implements HyperInterface
         // Build out URI instance
         if (!$url instanceof UriInterface) {
             $url = Uri::create($url);
-            var_dump($url);
         }
 
         // Create a new Request
@@ -284,7 +283,6 @@ class Hyper implements HyperInterface
             $context['http']['content'] = yield $request->getBody()->__toString();
         }
 
-        print_r($request);
         $resource = @\fopen($request->getUri()->__toString(), 'rb', false, \stream_context_create($context));
 
         if (!\is_resource($resource)) {
