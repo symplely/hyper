@@ -33,7 +33,7 @@ interface HyperInterface extends ClientInterface, RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function head(string $url = null, ...$authorizeHeaderOptions);
+    public function head(string $url = null, array ...$authorizeHeaderOptions);
 
     /**
      * @param string $url - URI for the request.
