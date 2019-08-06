@@ -29,7 +29,7 @@ class AsyncStreamTest extends TestCase
         $this->assertTrue($stream->isWritable());
         $this->assertTrue($stream->isSeekable());
         $this->assertEquals('php://temp', $stream->getMetadata('uri'));
-        $this->assertIsArray($stream->getMetadata());
+        $this->assertTrue(\is_type($stream->getMetadata(), 'array'));
         $this->assertEquals(4, $stream->getSize());
         $this->assertFalse($stream->eof());
         $stream->close();
