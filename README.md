@@ -19,14 +19,14 @@ use Async\Request\Hyper;
 
 $http = new Hyper;
 
-$response = $http->get("https://www.google.com");
-$response = $http->post("https://example.com/search", ["Form data"]));
+$response = yield $http->get("https://www.google.com");
+$response = yield $http->post("https://example.com/search", ["Form data"]));
 ```
 
 This library has built-in methods to support the major HTTP verbs: get, post, put, patch, delete, head, and options. However, you can make **any** HTTP verb request using the **request** method directly.
 
 ```php
-$response = $http->request("connect", "https://api.example.com/v1/books");
+$response = yield $http->request("connect", "https://api.example.com/v1/books");
 ```
 
 ## Handling responses
@@ -40,7 +40,7 @@ echo $response->getStatusCode(); // 200
 echo $response->getReasonPhrase(); // OK
 echo $response->isSuccessful(); // true
 
-$body = $response->getBody()->getContents();
+$body = yield $response->getBody()->getContents();
 ```
 
 ## Handling failed requests
@@ -62,12 +62,12 @@ use Async\Request\Hyper;
 $request = new Request;
 $request = $request
     ->withMethod("get")
-    ->withUri(new Uri("https://www.google.com"))
+    ->withUri(Uri::create("https://www.google.com"))
     ->withHeader("Accept-Language", "en_US");
 
 // Send the Request.
 $http = new Hyper;
-$response = $http->sendRequest($request);
+$response = yield $http->sendRequest($request);
 ```
 
 ## Options

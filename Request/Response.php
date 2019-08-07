@@ -13,4 +13,13 @@ use Async\Request\MessageResponse;
  */
 class Response extends MessageResponse
 {
+    /**
+     * Response is a successful one.
+     *
+     * @return boolean
+     */
+    public function isSuccessful()
+    {
+        return ($this->statusCode < 400);
+    }
 }

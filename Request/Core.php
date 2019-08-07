@@ -2,10 +2,15 @@
 
 declare(strict_types = 1);
 
-use Async\Request\BodyInterface;
+use Async\Request\Uri;
+use Async\Request\Request;
+use Async\Request\Response;
 use Async\Request\Hyper;
 use Async\Request\HyperInterface;
+use Async\Request\BodyInterface;
+use Async\Request\Exception\RequestException;
 use Psr\Http\Message\MessageInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 if(!\function_exists('mime_content_type')) {
@@ -121,7 +126,9 @@ if(!\function_exists('mime_content_type')) {
             'odt'     => 'application/vnd.oasis.opendocument.text',
             'ods'     => 'application/vnd.oasis.opendocument.spreadsheet',
         );
+
         [, $ext] = \explode('.', $filename);
+
         if (\array_key_exists(\strtolower($ext), $mime_types)) {
             return $mime_types[$ext];
         } else {
@@ -130,7 +137,7 @@ if(!\function_exists('mime_content_type')) {
     }
 }
 
-if (!\function_exists('create_uri')) {
+if (!\function_exists('hyper')) {
 	\define('SYMPLELY_USER_AGENT', 'Symplely Hyper PHP/' . \PHP_VERSION);
 
     // Content types for header data.
@@ -142,7 +149,7 @@ if (!\function_exists('create_uri')) {
 	\define('TYPE_JSON', BodyInterface::JSON_TYPE);
 	\define('TYPE_FORM', BodyInterface::FORM_TYPE);
 
-	function create_uri(string $tag = null): HyperInterface
+	function request_instance(string $tag = null): HyperInterface
 	{
 		global $__uri__, $__uriTag__;
 
@@ -156,7 +163,7 @@ if (!\function_exists('create_uri')) {
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
 	}
 
-	function clear_uri(string $tag = null)
+	function request_clear(string $tag = null)
 	{
         global $__uri__, $__uriTag__;
 
@@ -178,7 +185,7 @@ if (!\function_exists('create_uri')) {
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function get_uri(string $tagUri = null, ...$options)
+	function request_get(string $tagUri = null, ...$options)
 	{
 		if (empty($tagUri))
             return false;
@@ -195,37 +202,74 @@ if (!\function_exists('create_uri')) {
 	}
 
 	/**
+     * This function works similar to `gather()`.
+     * 
+     * Parameters are identical to those of the `Request()` constructor.
+     * 
+     * @param string|int|array|RequestInterface ...$count - If supplied as string, resolve/exit when the number is reached
+     * @param int|array|RequestInterface ...$requestInstance request task id's, if array covert to request object
+     * 
+     * @return array<ResponseInterface>
+     * 
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function put_uri(string $tagUri = null, ...$options)
+	function fetch(...$requestInstance)
+	{
+    }
+
+	/**
+     * This function works similar to `await()`.
+     * 
+     * @param array|RequestInterface ...$requestInstance - If an array will covert to an Request instance
+     * 
+     * @return int request task id that will resolve to an ResponseInterface instance when `fetch()`
+     * 
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function request($awaitableFunction, ...$args)
+	{
+        return Kernel::await($awaitableFunction, ...$args);
+    }
+
+	/**
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function request_put(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function delete_uri(string $tagUri = null, ...$options)
+	function request_delete(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function post_uri(string $tagUri = null, ...$options)
+	function request_post(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function patch_uri(string $tagUri = null, ...$options)
+	function request_patch(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function head_uri(string $tagUri = null, ...$options)
+	function request_options(string $tagUri = null, ...$options)
+	{
+	}
+
+	/**
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function request_head(string $tagUri = null, ...$options)
 	{
 		if (empty($tagUri))
             return false;
@@ -241,17 +285,91 @@ if (!\function_exists('create_uri')) {
         return false;
     }
 
-    function createTagAndSplit($tag, $options)
+	function response()
+	{
+    }
+
+	function response_set(ResponseInterface $response = null, string $tag = null)
+	{
+        global $__uriResponse__, $__uriResponseTag__;
+
+        if (empty($tag)) {
+            $__uriResponse__ = $response;
+        } else {
+            $__uriResponseTag__[$tag] = $response;
+        }
+    }
+
+	function response_clear($tag = null)
+	{
+        global $__uriResponse__, $__uriResponseTag__;
+
+        if (empty($tag)) {
+            $__uriResponse__ = null;
+            unset($GLOBALS['__uriResponse__']);
+        } elseif (isset($__uriResponseTag__[$tag])){
+            $__uriResponseTag__[$tag] = null;
+            unset($GLOBALS['__uriResponseTag__'][$tag]);
+        }
+    }
+
+	function response_instance($tag = null)
+	{
+        global $__uriResponse__, $__uriResponseTag__;
+
+        if (empty($tag)) {
+            $response = $__uriResponse__;
+        } elseif (isset($__uriResponseTag__[$tag])) {
+            $response = $__uriResponseTag__[$tag];
+        }
+
+        if (!isset($response) || !$response instanceof ResponseInterface) {
+            throw new \RuntimeException('Invalid access/call on null!');
+        }
+
+        return $response;
+    }
+
+	/**
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function response_body($tag = null)
+	{
+        $body = yield \response_instance($tag)->getBody()->getContents();
+        return $body;
+    }
+
+	function response_ok($tag = null): bool
+	{
+        return \response_instance($tag)->isSuccessful();
+    }
+
+	function response_phrase($tag = null): string
+	{
+        return \response_instance($tag)->getReasonPhrase();
+    }
+
+	function response_code($tag = null): int
+	{
+        return \response_instance($tag)->getStatusCode();
+    }
+
+    function createTagAndSplit($tag, $options = null)
     {
         $instance = null;
         if (\strpos($tag, '://') !== false) {
-            $instance = \create_uri();
+            $instance = \request_instance();
         } elseif (!empty($options)) {
             $tag = \array_shift($options);
-            $instance = \create_uri($tag);
+            $instance = \request_instance($tag);
         }
 
         return [$tag, $instance, $options];
+    }
+
+    function hyper()
+    {
+        return true;
     }
 
     /**
