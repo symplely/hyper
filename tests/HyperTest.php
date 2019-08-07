@@ -39,7 +39,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = yield $http->post(self::TARGET_URL, Body::json(['name' => 'Symplely Hyper']));
+        $response = yield $http->post(self::TARGET_URL, [Body::JSON, ['name' => 'Symplely Hyper']]);
 
         $this->assertEquals(201, $response->getStatusCode());
         $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
@@ -51,7 +51,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = yield $http->patch(self::TARGET_URL, new BufferBody("foo"));
+        $response = yield $http->patch(self::TARGET_URL, new Body("foo"));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
@@ -63,7 +63,7 @@ class HyperTest extends TestCase
     {
         $http = new Hyper;
 
-        $response = yield $http->put(self::TARGET_URL, new BufferBody("foo"));
+        $response = yield $http->put(self::TARGET_URL, new Body("foo"));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', $response->getBody()->getContents());
