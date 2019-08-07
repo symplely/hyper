@@ -492,6 +492,8 @@ class AsyncStream implements StreamInterface
 	 */
 	public static function copyResource($resource, $copy = null)
 	{
+        yield;
+
 		if (!\is_resource($resource)) {
 			throw new \InvalidArgumentException('Not resource.');
 		}

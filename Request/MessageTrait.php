@@ -18,7 +18,7 @@ trait MessageTrait
     /**
      * @inheritDoc
      */
-    public function getHeaderLine($name): string 
+    public function getHeaderLine($name): string
     {
         $header = $this->getHeader($name);
 

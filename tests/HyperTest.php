@@ -218,7 +218,7 @@ class HyperTest extends TestCase
         }
 
         $taskStatus = yield \gather($tasks);
-        $this->assertEquals(2, \count($taskStatus));
+        $this->assertEquals(3, \count($taskStatus));
         foreach($taskStatus as  $id => $status) {
             if (!$status)
                 $statuses[$status] = 0;
@@ -250,7 +250,7 @@ class HyperTest extends TestCase
         file_close($instance);
         if ($websites !== false) {
             $data = yield from $this->get_statuses($websites);
-            $this->expectOutputString('{"200":2,"400":0}');
+            $this->expectOutputString('{"200":3,"400":0}');
             print $data;
         }
     }

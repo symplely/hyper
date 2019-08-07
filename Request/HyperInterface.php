@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Async\Request;
 
 use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Fig\Http\Message\RequestMethodInterface;
 
@@ -83,4 +84,15 @@ interface HyperInterface extends RequestMethodInterface
      * @return ResponseInterface
      */
     public function request($method, $url, $body = null, array ...$headerOptions);
+
+    /**
+     * Sends a PSR-7 request and returns a PSR-7 response.
+     *
+     * @param RequestInterface $request
+     *
+     * @return ResponseInterface
+     *
+     * @throws \Psr\Http\Client\ClientExceptionInterface If an error happens while processing the request.
+     */
+    public function sendRequest(RequestInterface $request);
 }

@@ -128,7 +128,12 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_HEAD, $url, null, $this->optionsHeaderSplicer($authorizeHeaderOptions));
+        $options = $this->optionsHeaderSplicer($authorizeHeaderOptions);
+        $response = yield $this->request(Request::METHOD_HEAD, $url, null, $options);
+
+        if ($response->getStatusCode() === 405) {
+            $response = yield $this->get($url, $options);
+        }
 
         return $response;
     }
