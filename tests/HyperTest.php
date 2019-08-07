@@ -30,7 +30,7 @@ class HyperTest extends TestCase
         $response = yield $http->get(self::TARGET_URL);
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
-        $this->assertEquals('{"success":true}', $response->getBody()->getContents());
+        $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
         $this->assertTrue($response->hasHeader("Content-Type"));
         $this->assertEquals("Content-Type: application/json", $response->getHeaderLine("Content-Type"));
     }
@@ -54,7 +54,7 @@ class HyperTest extends TestCase
         $response = yield $http->patch(self::TARGET_URL, new BufferBody("foo"));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
-        $this->assertEquals('{"success":true}', $response->getBody()->getContents());
+        $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
         $this->assertTrue($response->hasHeader("Content-Type"));
         $this->assertEquals("Content-Type: text/plain", $response->getHeaderLine("Content-Type"));
     }
@@ -78,7 +78,7 @@ class HyperTest extends TestCase
         $response = yield $http->delete(self::TARGET_URL);
 
         $this->assertEquals(204, $response->getStatusCode());
-        $this->assertEquals("", $response->getBody()->getContents());
+        $this->assertEquals("", yield $response->getBody()->getContents());
     }
 
     public function test_head_response_received()
@@ -88,7 +88,7 @@ class HyperTest extends TestCase
         $response = yield $http->head(self::TARGET_URL);
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
-        $this->assertEquals("", $response->getBody()->getContents());
+        $this->assertEquals("", yield $response->getBody()->getContents());
     }
 
     public function test_options_response_received()
@@ -116,11 +116,11 @@ class HyperTest extends TestCase
         $http = new Hyper;
 
         $response = yield $http->get(self::TARGET_URL, [], [
-            'X-Added-Header' => 'Capsule!',
+            'X-Added-Header' => 'Symplely!',
         ]);
 
         $this->assertTrue($response->hasHeader('X-Added-Header'));
-        $this->assertEquals('Capsule!', $response->getHeader('X-Added-Header')[0]);
+        $this->assertEquals('Symplely!', $response->getHeader('X-Added-Header')[0]);
     }
 
 	public function testSendRequest()
@@ -163,9 +163,9 @@ class HyperTest extends TestCase
 	 */
 	public function testRequest(string $method, array $extra_headers){
 
-		try{
+		try {
 			$response = yield $this->http->request(
-				$method,
+				\strtoupper($method),
 				'https://httpbin.org/'.$method, [
 				    ['foo' => 'bar'],
 				    ['huh' => 'wtf'],
@@ -173,31 +173,26 @@ class HyperTest extends TestCase
                 ]
 			);
 
-		}
-		catch(\Exception $e){
+		} catch(\Exception $e) {
 			$this->markTestSkipped('httpbin.org error: '.$e->getMessage());
 		}
 
-		$json = json_decode($response->getBody()->getContents());
+		$json = \json_decode(yield $response->getBody()->getContents());
 
-		if(!$json){
+		if (!$json) {
 			$this->markTestSkipped('empty response');
-		}
-		else{
+		} else {
 			$this->assertSame('https://httpbin.org/'.$method.'?foo=bar', $json->url);
 			$this->assertSame('bar', $json->args->foo);
 			$this->assertSame('nope', $json->headers->What);
 			$this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
 
-			if(in_array($method, ['patch', 'post', 'put'])){
-
-				if(isset($extra_headers['content-type']) && $extra_headers['content-type'] === 'application/json'){
+			if (in_array($method, ['patch', 'post', 'put'])) {
+				if (isset($extra_headers['content-type']) && $extra_headers['content-type'] === 'application/json') {
 					$this->assertSame('wtf', $json->json->huh);
-				}
-				else{
+				} else {
 					$this->assertSame('wtf', $json->form->huh);
 				}
-
 			}
 		}
 
