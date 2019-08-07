@@ -8,7 +8,7 @@ use Async\Request\Response;
 use Async\Request\Hyper;
 use Async\Request\HyperInterface;
 use Async\Request\BodyInterface;
-use Async\Request\Exception\RequestException;
+use Async\Coroutine\Kernel;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -149,7 +149,7 @@ if (!\function_exists('hyper')) {
 	\define('TYPE_JSON', BodyInterface::JSON_TYPE);
 	\define('TYPE_FORM', BodyInterface::FORM_TYPE);
 
-	function request_instance(string $tag = null): HyperInterface
+	function http_instance(string $tag = null): HyperInterface
 	{
 		global $__uri__, $__uriTag__;
 
@@ -163,7 +163,7 @@ if (!\function_exists('hyper')) {
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
 	}
 
-	function request_clear(string $tag = null)
+	function http_clear(string $tag = null)
 	{
         global $__uri__, $__uriTag__;
 
@@ -185,7 +185,7 @@ if (!\function_exists('hyper')) {
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request_get(string $tagUri = null, ...$options)
+	function http_get(string $tagUri = null, ...$options)
 	{
 		if (empty($tagUri))
             return false;
@@ -203,14 +203,14 @@ if (!\function_exists('hyper')) {
 
 	/**
      * This function works similar to `gather()`.
-     * 
+     *
      * Parameters are identical to those of the `Request()` constructor.
-     * 
+     *
      * @param string|int|array|RequestInterface ...$count - If supplied as string, resolve/exit when the number is reached
      * @param int|array|RequestInterface ...$requestInstance request task id's, if array covert to request object
-     * 
+     *
      * @return array<ResponseInterface>
-     * 
+     *
 	 * - This function needs to be prefixed with `yield`
 	 */
 	function fetch(...$requestInstance)
@@ -219,57 +219,57 @@ if (!\function_exists('hyper')) {
 
 	/**
      * This function works similar to `await()`.
-     * 
+     *
      * @param array|RequestInterface ...$requestInstance - If an array will covert to an Request instance
-     * 
+     *
      * @return int request task id that will resolve to an ResponseInterface instance when `fetch()`
-     * 
+     *
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request($awaitableFunction, ...$args)
+	function request($request)
 	{
-        return Kernel::await($awaitableFunction, ...$args);
+        return Kernel::await($request);
     }
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request_put(string $tagUri = null, ...$options)
+	function http_put(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request_delete(string $tagUri = null, ...$options)
+	function http_delete(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request_post(string $tagUri = null, ...$options)
+	function http_post(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request_patch(string $tagUri = null, ...$options)
+	function http_patch(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request_options(string $tagUri = null, ...$options)
+	function http_options(string $tagUri = null, ...$options)
 	{
 	}
 
 	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function request_head(string $tagUri = null, ...$options)
+	function http_head(string $tagUri = null, ...$options)
 	{
 		if (empty($tagUri))
             return false;
@@ -358,10 +358,10 @@ if (!\function_exists('hyper')) {
     {
         $instance = null;
         if (\strpos($tag, '://') !== false) {
-            $instance = \request_instance();
+            $instance = \http_instance();
         } elseif (!empty($options)) {
             $tag = \array_shift($options);
-            $instance = \request_instance($tag);
+            $instance = \http_instance($tag);
         }
 
         return [$tag, $instance, $options];

@@ -10,9 +10,9 @@ class CoreTest extends TestCase
 {
     const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net";
     //const TARGET_URL = "https://httpbin.org/";
-    private $websites = [ 
-        'http://google.com/', 
-        'http://blogspot.com/', 
+    private $websites = [
+        'http://google.com/',
+        'http://blogspot.com/',
         'http://creativecommons.org/'
     ];
 
@@ -43,10 +43,10 @@ class CoreTest extends TestCase
 
     public function get_website_status($url)
     {
-        $response = yield \request_head();
+        $response = yield \http_head();
         $this->assertFalse($response);
-        $response = yield \request_head($url);
-        \request_clear();
+        $response = yield \http_head($url);
+        \http_clear();
         $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $response);
         $status = $response->getStatusCode();
         $this->assertEquals(200, $status);
@@ -56,6 +56,8 @@ class CoreTest extends TestCase
     public function taskRequestHead()
     {
         if (\is_array($this->websites)) {
+            $int = yield \request(\http_head(self::TARGET_URL));
+            $this->assertEquals('int', \is_type($int));
             $data = yield from $this->get_statuses($this->websites);
             $this->expectOutputString('{"200":3,"400":0}');
             print $data;
