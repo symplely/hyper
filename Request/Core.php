@@ -183,7 +183,7 @@ if (!\function_exists('create_uri')) {
 		if (empty($tagUri))
             return false;
 
-        [$url, $instance, $options] = \tagOptionsSplit($tagUri, $options);
+        [$url, $instance, $options] = \createTagAndSplit($tagUri, $options);
 
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->get($url, $options);
@@ -230,7 +230,7 @@ if (!\function_exists('create_uri')) {
 		if (empty($tagUri))
             return false;
 
-        [$url, $instance, $options] = \tagOptionsSplit($tagUri, $options);
+        [$url, $instance, $options] = \createTagAndSplit($tagUri, $options);
 
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->head($url, $options);
@@ -241,7 +241,7 @@ if (!\function_exists('create_uri')) {
         return false;
     }
 
-    function tagOptionsSplit($tag, $options)
+    function createTagAndSplit($tag, $options)
     {
         $instance = null;
         if (\strpos($tag, '://') !== false) {
@@ -262,7 +262,7 @@ if (!\function_exists('create_uri')) {
      */
     function get_json(ResponseInterface $response, bool $assoc = null)
     {
-        return \json_decode($response->getBody()->getContents(), $assoc);
+        return \json_decode(yield $response->getBody()->getContents(), $assoc);
     }
 
     /**
@@ -273,7 +273,7 @@ if (!\function_exists('create_uri')) {
      */
     function get_xml(ResponseInterface $response, bool $assoc = null)
     {
-        $data = \simplexml_load_string($response->getBody()->getContents());
+        $data = \simplexml_load_string(yield $response->getBody()->getContents());
 
         return $assoc === true
             ? \json_decode(\json_encode($data), true) // cruel
@@ -287,7 +287,7 @@ if (!\function_exists('create_uri')) {
      *
      * @return string
      */
-    function message_to_string(MessageInterface $message): string
+    function message_to_string(MessageInterface $message)
     {
         $msg = '';
 
@@ -306,7 +306,7 @@ if (!\function_exists('create_uri')) {
             $msg .= "\r\n".$name.': '.\implode(', ', $values);
         }
 
-        return $msg."\r\n\r\n".$message->getBody();
+        return $msg."\r\n\r\n".yield $message->getBody()->getContents();
     }
 
     /**
@@ -316,9 +316,9 @@ if (!\function_exists('create_uri')) {
      *
      * @return string
      */
-    function decompress_content(MessageInterface $message): string
+    function decompress_content(MessageInterface $message)
     {
-        $data = $message->getBody()->getContents();
+        $data = yield $message->getBody()->getContents();
 
         switch($message->getHeaderLine('content-encoding')) {
             case 'compress':
