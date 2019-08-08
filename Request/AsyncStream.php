@@ -84,15 +84,6 @@ class AsyncStream implements StreamInterface
 		$this->readable = $this->isReadable();
     }
 
-	/**
-	 * Closes the stream when the destructed
-	 *
-	 * @return void
-	 */
-	public function __destruct(){
-		$this->close();
-    }
-
     /**
      * Set the internal stream resource.
      *
@@ -243,13 +234,11 @@ class AsyncStream implements StreamInterface
      */
     public function close()
     {
-        $handle = $this->getResource();
+        $handle = $this->detach();;
 
 		if(\is_resource($handle)) {
 			\fclose($handle);
-        }
-
-        $this->detach();
+        }        
     }
 
     /**
@@ -289,6 +278,7 @@ class AsyncStream implements StreamInterface
      */
     public function getContents()
     {
+        yield;
         $handle = $this->getResource();
 
         if ($this->readable && ($handle !== null)) {
@@ -352,6 +342,7 @@ class AsyncStream implements StreamInterface
      */
     public function read($length)
     {
+        yield;
         $handle = $this->getResource();
 
         if (!$this->readable || ($handle === null)) {
@@ -401,6 +392,7 @@ class AsyncStream implements StreamInterface
      */
     public function write($string)
     {
+        yield;
         $handle = $this->getResource();
 
         if (!$this->writable || ($handle === null)) {

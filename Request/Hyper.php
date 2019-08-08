@@ -36,6 +36,7 @@ class Hyper implements HyperInterface
         'headers' => [
             'Accept-Charset' => 'utf-8',
             'X-Powered-By' => 'PHP/' . \PHP_VERSION,
+            'Connection' => 'close',
         ]
     ];
 
@@ -45,12 +46,12 @@ class Hyper implements HyperInterface
      * @var array
      */
     protected $options = [
-        'protocol_version' => 1.1,
+        'protocol_version' => '1.1',
         'follow_location' => 1,
         'request_fulluri' => false,
         'max_redirects' => 10,
         'ignore_errors' => true,
-        'timeout' => 120,
+        'timeout' => 30,
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 
@@ -234,8 +235,8 @@ class Hyper implements HyperInterface
         }
 
 		if (\is_array($body)) {
-            [$type, $data, $format] = (isset($body[0]) && \is_string($body[0])) ? $body : [Body::FORM, $body];
-			$body = new Body($type, $data, $format);
+            [$type, $data] = (isset($body[0]) && \is_string($body[0])) ? $body : [Body::JSON, $body];
+			$body = new Body($type, $data);
 		}
 
         // Add body and Content-Type header

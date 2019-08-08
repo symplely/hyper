@@ -40,14 +40,6 @@ class AsyncStreamTest extends TestCase
         \coroutine_run($this->taskConstructorInitializesProperties());
     }
 
-    public function testStreamClosesHandleOnDestruct()
-    {
-        $handle = fopen('php://temp', 'r');
-        $stream = AsyncStream::createFromResource($handle);
-        unset($stream);
-        $this->assertFalse(is_resource($handle));
-    }
-
     public function taskConvertsToString()
     {
         $stream = yield AsyncStream::create('data');
