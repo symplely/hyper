@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 class HyperTest extends TestCase
 {
     const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net/";
-    const TARGET_URLS = "https://httpbin.org";
+    const TARGET_URLS = "https://httpbin.org/";
     protected $http;
 
 	protected function setUp(): void
@@ -40,12 +40,11 @@ class HyperTest extends TestCase
 
     public function task_post_response_received()
     {
-        $response = yield $this->http->post(self::TARGET_URLS, Body::create(Body::JSON, ['data' => 'demo']));
+        $response = yield $this->http->post(self::TARGET_URL, new Body(Body::JSON, ["foo" => "bar"]));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
-        $this->assertTrue($response->hasHeader("Content-Type"));
-        $this->assertContains("application/json", $response->getHeaderLine("Content-Type"));
+        $this->assertTrue($response->hasHeader("X-Powered-By"));
     }
 
     public function test_post_response_received()
@@ -53,72 +52,97 @@ class HyperTest extends TestCase
         \coroutine_run($this->task_post_response_received());
     }
 
-    public function test_patch_response_received()
+    public function task_patch_response_received()
     {
         $response = yield $this->http->patch(self::TARGET_URL, new Body("foo"));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
-        $this->assertTrue($response->hasHeader("Content-Type"));
-        $this->assertEquals("Content-Type: text/plain", $response->getHeaderLine("Content-Type"));
+        $this->assertEquals("application/json; charset=utf-8", $response->getHeaderLine("Content-Type"));
+    }
+
+    public function test_patch_response_received()
+    {
+        \coroutine_run($this->task_patch_response_received());
+    }
+
+    public function task_put_response_received()
+    {
+        $response = yield $this->http->put(self::TARGET_URL, new Body("foo", 'text/plain'));
+
+        $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
+        $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
+        $this->assertTrue($response->hasHeader("x-pd-status"));
     }
 
     public function test_put_response_received()
     {
-        $response = yield $this->http->put(self::TARGET_URL, new Body("foo"));
+        \coroutine_run($this->task_put_response_received());
+    }
+
+    public function task_delete_response_received()
+    {
+        $response = yield $this->http->delete(self::TARGET_URL, new Body("foo"));
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
-        $this->assertEquals('{"success":true}', $response->getBody()->getContents());
-        $this->assertTrue($response->hasHeader("Content-Type"));
-        $this->assertEquals("Content-Type: text/plain", $response->getHeaderLine("Content-Type"));
+        $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
+        $this->assertTrue($response->hasHeader("Date"));
     }
 
     public function test_delete_response_received()
     {
-        $response = yield $this->http->delete(self::TARGET_URL);
-
-        $this->assertEquals(204, $response->getStatusCode());
-        $this->assertEquals("", yield $response->getBody()->getContents());
+        \coroutine_run($this->task_delete_response_received());
     }
 
-    public function test_head_response_received()
+    public function task_head_response_received()
     {
         $response = yield $this->http->head(self::TARGET_URL);
 
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals("", yield $response->getBody()->getContents());
+        $this->assertTrue($response->hasHeader("Access-Control-Allow-Origin"));
+    }
+
+    public function test_head_response_received()
+    {
+        \coroutine_run($this->task_head_response_received());
+    }
+
+    public function task_options_response_received()
+    {
+        $response = yield $this->http->options(self::TARGET_URL);
+
+        $this->assertEquals(Response::STATUS_NO_CONTENT, $response->getStatusCode());
+        $this->assertEquals("", yield $response->getBody()->getContents());
+        $this->assertTrue($response->hasHeader("Access-Control-Allow-Methods"));
     }
 
     public function test_options_response_received()
     {
-        $response = yield $this->http->options(self::TARGET_URL);
-
-        $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
-        $this->assertEquals("", $response->getBody()->getContents());
+        \coroutine_run($this->task_options_response_received());
     }
 
-    public function test_send_request_with_default_headers()
+    public function task_send_request_with_added_headers()
     {
-        $response = yield $this->http->get(self::TARGET_URL);
+        $response = yield $this->http->get(self::TARGET_URLS.'get', [], [
+            'X-Added-Header' => 'Symplely!',
+        ], ['timeout' => 5]);
 
-        $this->assertTrue($response->hasHeader('X-Powered-By'));
-        $this->assertEquals('PHP/' . \PHP_VERSION, $response->getHeader('X-Powered-By')[0]);
+        $this->assertTrue($response->hasHeader('X-Content-Type-Options'));
+        //$this->assertEquals("", yield $response->getBody()->getContents());
+        $this->assertEquals('Symplely!', $response->getHeader('X-Added-Header'));
     }
 
     public function test_send_request_with_added_headers()
     {
-        $response = yield $this->http->get(self::TARGET_URL, [], [
-            'X-Added-Header' => 'Symplely!',
-        ]);
-
-        $this->assertTrue($response->hasHeader('X-Added-Header'));
-        $this->assertEquals('Symplely!', $response->getHeader('X-Added-Header')[0]);
+        \coroutine_run($this->task_send_request_with_added_headers());
     }
+
 
 	public function testSendRequest()
 	{
 		try {
-			$url      = 'https://httpbin.org/get';
+			$url      = self::TARGET_URLS.'get';
 			$response = yield $this->http->sendRequest(new Request(Request::METHOD_GET, $url));
 			$json     = json_decode($response->getBody()->getContents());
 
@@ -157,7 +181,7 @@ class HyperTest extends TestCase
 		try {
 			$response = yield $this->http->request(
 				\strtoupper($method),
-				'https://httpbin.org/'.$method, [
+				self::TARGET_URLS.$method, [
 				    ['foo' => 'bar'],
 				    ['huh' => 'wtf'],
                     ['what' => 'nope'] + $extra_headers
@@ -173,7 +197,7 @@ class HyperTest extends TestCase
 		if (!$json) {
 			$this->markTestSkipped('empty response');
 		} else {
-			$this->assertSame('https://httpbin.org/'.$method.'?foo=bar', $json->url);
+			$this->assertSame(self::TARGET_URLS.$method.'?foo=bar', $json->url);
 			$this->assertSame('bar', $json->args->foo);
 			$this->assertSame('nope', $json->headers->What);
 			$this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});

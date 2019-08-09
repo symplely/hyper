@@ -34,6 +34,7 @@ class Hyper implements HyperInterface
      */
     protected $headerOptions = [
         'headers' => [
+            'Accept' => '*/*',
             'Accept-Charset' => 'utf-8',
             'X-Powered-By' => 'PHP/' . \PHP_VERSION,
             'Connection' => 'close',
@@ -235,9 +236,16 @@ class Hyper implements HyperInterface
         }
 
 		if (\is_array($body)) {
-            [$type, $data] = (isset($body[0]) && \is_string($body[0])) ? $body : [Body::JSON, $body];
-			$body = new Body($type, $data);
-		}
+            $format = null;
+            if (isset($body[0]) && isset($body[1]) && isset($body[2]))
+                [$type, $data, $format] = $body;
+            elseif (isset($body[0]) && isset($body[1]))
+                [$type, $data] = $body;
+            else
+                [$type, $data] = [Body::FORM, $body];
+
+            $body = new Body($type, $data, $format);
+        }
 
         // Add body and Content-Type header
         if ($body) {
@@ -253,7 +261,7 @@ class Hyper implements HyperInterface
         }
 
         // Add request specific headers.
-        if (!empty($headers['headers'])) {
+        if (isset($headers['headers'])) {
             foreach($headers['headers'] as $key => $value) {
                 $request = $request->withHeader($key, $value);
             }
@@ -286,7 +294,10 @@ class Hyper implements HyperInterface
         $context = ['http' => $options];
 
         if ($request->getBody()->getSize()) {
-            $context['http']['content'] = yield $request->getBody()->__toString();
+            if ($request->getBody() instanceof BodyInterface)
+                $context['http']['content'] = $request->getBody()->__toString();
+            else
+                $context['http']['content'] = yield $request->getBody()->__toString();
         }
 
         $resource = @\fopen($request->getUri()->__toString(), 'rb', false, \stream_context_create($context));
@@ -305,7 +316,6 @@ class Hyper implements HyperInterface
         $stream = yield AsyncStream::copyResource($resource);
 
         $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
-
         if ($options['follow_location']) {
             $headers = $this->filterResponseHeaders($headers);
         }
@@ -409,16 +419,26 @@ class Hyper implements HyperInterface
 
 	protected function optionsHeaderSplicer(...$headersOptions): array
 	{
+        $option = [];
+        $options = [];
         if (isset($headersOptions[0])) {
             $authorization = $this->authorization($headersOptions[0]);
             $authorize = !empty($authorization) ? ['Authorization' => $authorization] : null;
-            array_shift($headersOptions);
+            $headersOptions = \array_shift($headersOptions);
         } else {
             $authorize = null;
         }
 
-        [$headers, $options] = (isset($headersOptions[0])) ? $headersOptions : null;
-		return [['headers' => [ $authorize, $headers]], $options];
+        if (isset($headersOptions[0]) && isset($headersOptions[1]) && isset($headersOptions[2])) {
+            [$authorizer, $headers, $options] =  $headersOptions;
+        } else {
+            [$authorizer, $headers] = (isset($headersOptions[0]) && isset($headersOptions[1])) ? $headersOptions : [$authorize, $headersOptions];
+        }
+
+        $authorizer = $authorize;
+        $option['headers'][] = $headers;
+        $option['headers'][] = $authorizer;
+		return [$option, $options];
     }
 
 	protected function flush()
