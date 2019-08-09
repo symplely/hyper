@@ -79,11 +79,11 @@ interface HyperInterface extends RequestMethodInterface
      * @param string $method - GET, POST, HEAD, PUT, PATCH, DELETE, OPTION
      * @param Uri|string $url - URI for the request.
      * @param \Psr\Http\Message\StreamInterface|array|null $body
-     * @param array ...$headerOptions
+     * @param array ...$authorizeHeaderOptions
      *
      * @return ResponseInterface
      */
-    public function request($method, $url, $body = null, array ...$headerOptions);
+    public function request($method, $url, $body = null, array ...$authorizeHeaderOptions);
 
     /**
      * Sends a PSR-7 request and returns a PSR-7 response.

@@ -29,10 +29,8 @@ class Hyper implements HyperInterface
      *
      * Headers are only added when using the `request` method
      * (or any of the built-in HTTP method calls: get, post, put, etc.).
-     *
-     * @var array
      */
-    protected $headerOptions = [
+    const HEADERS = [
         'headers' => [
             'Accept' => '*/*',
             'Accept-Charset' => 'utf-8',
@@ -43,10 +41,8 @@ class Hyper implements HyperInterface
 
     /**
      * Default options.
-     *
-     * @var array
      */
-    protected $options = [
+    const OPTIONS = [
         'protocol_version' => '1.1',
         'follow_location' => 1,
         'request_fulluri' => false,
@@ -56,39 +52,7 @@ class Hyper implements HyperInterface
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 
-    protected $requestOptions = null;
-
-    /**
-	 * The requested uri
-     *
-     * @var string
-     */
-    protected $uri;
-
-    /**
-     * headers with lowercase keys
-     *
-     * @var array
-     */
-    protected $headers = [];
-
-    /**
-     * Stream of data.
-     *
-     * @var resource|null
-     */
-    protected $resource;
-
-    protected $instance;
-
-    protected $meta = [];
-
-	/**
-	 * The request params
-	 *
-	 * @var array
-	 */
-    protected $parameters = [];
+    protected $requested = [];
 
     /**
      * Make a GET call.
@@ -100,7 +64,7 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_GET, $url, null, $this->optionsHeaderSplicer($authorizeHeaderOptions));
+        $response = yield $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions);
 
         return $response;
     }
@@ -115,7 +79,7 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_POST, $url, $data, $this->optionsHeaderSplicer($authorizeHeaderOptions));
+        $response = yield $this->request(Request::METHOD_POST, $url, $data, ...$authorizeHeaderOptions);
 
         return $response;
     }
@@ -130,11 +94,10 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $options = $this->optionsHeaderSplicer($authorizeHeaderOptions);
-        $response = yield $this->request(Request::METHOD_HEAD, $url, null, $options);
+        $response = yield $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions);
 
         if ($response->getStatusCode() === 405) {
-            $response = yield $this->get($url, $options);
+            $response = yield $this->get($url, $authorizeHeaderOptions);
         }
 
         return $response;
@@ -150,7 +113,7 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_PATCH, $url, $data, $this->optionsHeaderSplicer($authorizeHeaderOptions));
+        $response = yield $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions);
 
         return $response;
     }
@@ -165,7 +128,7 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_PUT, $url, $data, $this->optionsHeaderSplicer($authorizeHeaderOptions));
+        $response = yield $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions);
 
         return $response;
     }
@@ -180,7 +143,7 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_DELETE, $url, $data, $this->optionsHeaderSplicer($authorizeHeaderOptions));
+        $response = yield $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions);
 
         return $response;
     }
@@ -192,19 +155,29 @@ class Hyper implements HyperInterface
      */
     public function options(string $url = null, array ...$authorizeHeaderOptions)
     {
-        $response = yield $this->request(Request::METHOD_OPTIONS, $url, null, $this->optionsHeaderSplicer($authorizeHeaderOptions));
+        $response = yield $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions);
 
         return $response;
     }
 
-    public function request($method, $url, $body = null, array ...$headerOptions)
+    public function request($method, $url, $body = null, array ...$authorizeHeaderOptions)
     {
-        if (isset($headerOptions[0]) && isset($headerOptions[1]))
+        $headerOptions = $this->optionsHeaderSplicer($authorizeHeaderOptions);
+        $defaultOptions = self::OPTIONS;
+        $defaultHeaders = self::HEADERS;
+
+        if (isset($headerOptions[0]) && isset($headerOptions[1])) {            
             [$headers, $options] = $headerOptions;
-        elseif (isset($headerOptions[0]))
+        } elseif (isset($headerOptions[0])) {
             [$headers, $options] = [$headerOptions, null];
-        else
+        } else {
             [$headers, $options] = null;
+        }
+            
+
+print_r($headerOptions);
+print_r($headers);
+print_r($options);
 
         // Build out URI instance
         if (!$url instanceof UriInterface) {
@@ -217,11 +190,11 @@ class Hyper implements HyperInterface
 			->withUri($url);
 
         // Set default HTTP version
-        $request = $request->withProtocolVersion((string) $this->options['protocol_version']);
+        $request = $request->withProtocolVersion((string) $defaultOptions['protocol_version']);
 
         // Add in default headers to request.
-        if (!empty($this->headerOptions['headers'])) {
-            foreach($this->headerOptions['headers'] as $name => $value) {
+        if (!empty($defaultHeaders['headers'])) {
+            foreach($defaultHeaders['headers'] as $name => $value) {
                 $request = $request->withAddedHeader($name, $value);
             }
         }
@@ -231,8 +204,16 @@ class Hyper implements HyperInterface
             $request = $request->withHeader('User-Agent', \SYMPLELY_USER_AGENT);
         }
 
+        // Add request specific options.
         if (!empty($options)) {
-            $this->requestOptions = \array_merge($this->options, $options);
+            $this->requested = \array_merge($defaultOptions, $options);
+        }
+
+        // Add request specific headers.
+        if (!empty($headers['headers'])) {
+            foreach($headers['headers'] as $key => $value) {
+                $request = $request->withHeader($key, $value);
+            }
         }
 
 		if (\is_array($body)) {
@@ -260,13 +241,6 @@ class Hyper implements HyperInterface
             $request = $request->withBody($body);
         }
 
-        // Add request specific headers.
-        if (isset($headers['headers'])) {
-            foreach($headers['headers'] as $key => $value) {
-                $request = $request->withHeader($key, $value);
-            }
-        }
-
         return $this->sendRequest($request);
     }
 
@@ -280,12 +254,15 @@ class Hyper implements HyperInterface
 
     protected function send(RequestInterface $request)
     {
+        
+        $option = self::OPTIONS;
+       // $defaultHeaders = self::HEADERS;
+
         if ($request->getBody()->getSize()) {
 			$request = $request->withHeader('Content-Length', (string) $request->getBody()->getSize());
         }
 
-        $useOptions = \is_array($this->requestOptions) ? $this->requestOptions : $this->options;
-		$options = \array_merge($useOptions, [
+		$options = \array_merge($this->requested, [
 			'method' => $request->getMethod(),
 			'protocol_version' => $request->getProtocolVersion(),
 			'header' => $this->buildRequestHeaders($request->getHeaders()),
@@ -316,7 +293,7 @@ class Hyper implements HyperInterface
         $stream = yield AsyncStream::copyResource($resource);
 
         $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
-        if ($options['follow_location']) {
+        if ($option['follow_location']) {
             $headers = $this->filterResponseHeaders($headers);
         }
 
@@ -419,37 +396,39 @@ class Hyper implements HyperInterface
 
 	protected function optionsHeaderSplicer(...$headersOptions): array
 	{
-        $option = [];
         $options = [];
+        $header['headers'] = [];
+        $headersOptions = \array_shift($headersOptions[0]);
         if (isset($headersOptions[0])) {
             $authorization = $this->authorization($headersOptions[0]);
             $authorize = !empty($authorization) ? ['Authorization' => $authorization] : null;
-            $headersOptions = \array_shift($headersOptions);
         } else {
-            $authorize = null;
+            $authorize = [];
         }
 
         if (isset($headersOptions[0]) && isset($headersOptions[1]) && isset($headersOptions[2])) {
             [$authorizer, $headers, $options] =  $headersOptions;
         } else {
-            [$authorizer, $headers] = (isset($headersOptions[0]) && isset($headersOptions[1])) ? $headersOptions : [$authorize, $headersOptions];
+            [$authorizer, $headers] = (isset($headersOptions[0]) && isset($headersOptions[1])) 
+                ? $headersOptions
+                : [$authorize, $headersOptions];
         }
 
         $authorizer = $authorize;
-        $option['headers'][] = $headers;
-        $option['headers'][] = $authorizer;
-		return [$option, $options];
+        if (!empty($authorizer))
+            $combined = \array_merge($authorizer, $headers);
+        else
+            $combined = $headers;
+
+        if (!empty($combined))
+            $header['headers'] = $combined;
+
+		return !empty($header['headers']) ? [$header, $options] : [];
     }
 
 	protected function flush()
 	{
-        $this->requestOptions = null;
-        $this->uri = null;
-        $this->headers = [];
-        $this->resource = null;
-        $this->instance -null;
-        $this->meta = [];
-        $this->parameters = [];
+        $this->requested = null;
     }
 
 	public function close()
