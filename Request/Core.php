@@ -168,15 +168,9 @@ if (!\function_exists('hyper')) {
         global $__uri__, $__uriTag__;
 
         if (empty($tag)) {
-            if ($__uri__ instanceof HyperInterface)
-                $__uri__->close();
-
             $__uri__ = null;
             unset($GLOBALS['__uri__']);
         } else {
-            if (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface)
-                $__uriTag__[$tag]->close();
-
             $__uriTag__[$tag] = null;
             unset($GLOBALS['__uriTag__'][$tag]);
         }
@@ -275,7 +269,6 @@ if (!\function_exists('hyper')) {
             return false;
 
         [$url, $instance, $options] = \createTagAndSplit($tagUri, $options);
-
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->head($url, $options);
 
@@ -354,7 +347,7 @@ if (!\function_exists('hyper')) {
         return \response_instance($tag)->getStatusCode();
     }
 
-    function createTagAndSplit($tag, $options = null)
+    function createTagAndSplit($tag, $options = [])
     {
         $instance = null;
         if (\strpos($tag, '://') !== false) {

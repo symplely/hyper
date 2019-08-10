@@ -52,8 +52,6 @@ class Hyper implements HyperInterface
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 
-    protected $requested = [];
-
     /**
      * Make a GET call.
      *
@@ -166,18 +164,15 @@ class Hyper implements HyperInterface
         $defaultOptions = self::OPTIONS;
         $defaultHeaders = self::HEADERS;
 
-        if (isset($headerOptions[0]) && isset($headerOptions[1])) {            
+        if (isset($headerOptions[0]) && isset($headerOptions[1])) {
             [$headers, $options] = $headerOptions;
+            $headers = (isset($headers['headers'][0])) ? [] : $headers;
         } elseif (isset($headerOptions[0])) {
             [$headers, $options] = [$headerOptions, null];
+            $headers = (isset($headers['headers'][0])) ? [] : $headers;
         } else {
             [$headers, $options] = null;
         }
-            
-
-print_r($headerOptions);
-print_r($headers);
-print_r($options);
 
         // Build out URI instance
         if (!$url instanceof UriInterface) {
@@ -204,9 +199,11 @@ print_r($options);
             $request = $request->withHeader('User-Agent', \SYMPLELY_USER_AGENT);
         }
 
-        // Add request specific options.
+        // Add requested specific options..
         if (!empty($options)) {
-            $this->requested = \array_merge($defaultOptions, $options);
+            // Add with defaults also.
+            $useOptions = \array_merge($defaultOptions, $options);
+            $request = $request->withOptions($useOptions);
         }
 
         // Add request specific headers.
@@ -249,24 +246,19 @@ print_r($options);
      */
     public function sendRequest(RequestInterface $request)
     {
-        return $this->send($request);
-    }
-
-    protected function send(RequestInterface $request)
-    {
-        
         $option = self::OPTIONS;
-       // $defaultHeaders = self::HEADERS;
 
         if ($request->getBody()->getSize()) {
 			$request = $request->withHeader('Content-Length', (string) $request->getBody()->getSize());
         }
 
-		$options = \array_merge($this->requested, [
+        $useOption = $request->getOptions();
+        $useOptions = empty($useOptions) ? $option : $useOption;
+		$options = \array_merge($useOptions, [
 			'method' => $request->getMethod(),
 			'protocol_version' => $request->getProtocolVersion(),
 			'header' => $this->buildRequestHeaders($request->getHeaders()),
-		]);
+        ]);
 
         $context = ['http' => $options];
 
@@ -409,7 +401,7 @@ print_r($options);
         if (isset($headersOptions[0]) && isset($headersOptions[1]) && isset($headersOptions[2])) {
             [$authorizer, $headers, $options] =  $headersOptions;
         } else {
-            [$authorizer, $headers] = (isset($headersOptions[0]) && isset($headersOptions[1])) 
+            [$authorizer, $headers] = (isset($headersOptions[0]) && isset($headersOptions[1]))
                 ? $headersOptions
                 : [$authorize, $headersOptions];
         }
@@ -425,14 +417,4 @@ print_r($options);
 
 		return !empty($header['headers']) ? [$header, $options] : [];
     }
-
-	protected function flush()
-	{
-        $this->requested = null;
-    }
-
-	public function close()
-	{
-        $this->flush();
-	}
 }

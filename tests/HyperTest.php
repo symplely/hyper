@@ -124,13 +124,14 @@ class HyperTest extends TestCase
 
     public function task_send_request_with_added_headers()
     {
-        $response = yield $this->http->get(self::TARGET_URLS.'get', [], [
-            'X-Added-Header' => 'Symplely!',
-        ], ['timeout' => 5]);
+        $response = yield $this->http->get(self::TARGET_URLS.'get',
+            [],
+            ['X-Added-Header' => 'Symplely!'],
+            ['timeout' => 5]
+        );
 
         $this->assertTrue($response->hasHeader('X-Content-Type-Options'));
-        //$this->assertEquals("", yield $response->getBody()->getContents());
-        $this->assertEquals('Symplely!', $response->getHeader('X-Added-Header'));
+        $this->assertContains("X-Added-Header", yield $response->getBody()->getContents());
     }
 
     public function test_send_request_with_added_headers()
@@ -139,16 +140,15 @@ class HyperTest extends TestCase
     }
 
 
-	public function testSendRequest()
+	public function taskSendRequest()
 	{
 		try {
-			$url      = self::TARGET_URLS.'get';
+			$url = self::TARGET_URLS.'get';
 			$response = yield $this->http->sendRequest(new Request(Request::METHOD_GET, $url));
-			$json     = json_decode($response->getBody()->getContents());
+			$json = \json_decode(yield $response->getBody()->getContents());
 
 			$this->assertSame($url, $json->url);
 			$this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
-			$this->assertSame(Response::STATUS_OK, $response->getStatusCode());
 			$this->assertSame(Response::STATUS_OK, $response->getStatusCode());
 		} catch(\Exception $e) {
 			$this->markTestSkipped('httpbin.org error: '.$e->getMessage());
@@ -156,31 +156,30 @@ class HyperTest extends TestCase
 
 	}
 
+    public function testSendRequest()
+    {
+        \coroutine_run($this->taskSendRequest());
+    }
+
 	public function requestDataProvider():array {
 		return [
-			'get'        => ['get',    []],
-			'post'       => ['post',   []],
-			'post-json'  => ['post',   ['Content-type' => 'application/json']],
-			'post-form'  => ['post',   ['Content-type' => 'application/x-www-form-urlencoded']],
-			'put-json'   => ['put',    ['Content-type' => 'application/json']],
-			'put-form'   => ['put',    ['Content-type' => 'application/x-www-form-urlencoded']],
-			'patch-json' => ['patch',  ['Content-type' => 'application/json']],
-			'patch-form' => ['patch',  ['Content-type' => 'application/x-www-form-urlencoded']],
-			'delete'     => ['delete', []],
+			'get'        => ['GET',    []],
+			'post'       => ['POST',   []],
+			'post-json'  => ['POST',   ['Content-type' => 'application/json']],
+			'post-form'  => ['POST',   ['Content-type' => 'application/x-www-form-urlencoded']],
+			'put-json'   => ['PUT',    ['Content-type' => 'application/json']],
+			'put-form'   => ['PUT',    ['Content-type' => 'application/x-www-form-urlencoded']],
+			'patch-json' => ['PATCH',  ['Content-type' => 'application/json']],
+			'patch-form' => ['PATCH',  ['Content-type' => 'application/x-www-form-urlencoded']],
+			'delete'     => ['DELETE', []],
 		];
 	}
 
-	/**
-	 * @dataProvider requestDataProvider
-	 *
-	 * @param $method
-	 * @param $extra_headers
-	 */
-    public function testRequest(string $method, array $extra_headers)
+    public function taskRequest(string $method, array $extra_headers)
     {
 		try {
 			$response = yield $this->http->request(
-				\strtoupper($method),
+				$method,
 				self::TARGET_URLS.$method, [
 				    ['foo' => 'bar'],
 				    ['huh' => 'wtf'],
@@ -189,20 +188,20 @@ class HyperTest extends TestCase
 			);
 
 		} catch(\Exception $e) {
-			$this->markTestSkipped('httpbin.org error: '.$e->getMessage());
+			echo('httpbin.org error: '.$e->getMessage());
 		}
 
 		$json = \json_decode(yield $response->getBody()->getContents());
 
 		if (!$json) {
-			$this->markTestSkipped('empty response');
+			echo('empty response');
 		} else {
 			$this->assertSame(self::TARGET_URLS.$method.'?foo=bar', $json->url);
 			$this->assertSame('bar', $json->args->foo);
 			$this->assertSame('nope', $json->headers->What);
 			$this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
 
-			if (in_array($method, ['patch', 'post', 'put'])) {
+			if (\in_array($method, ['patch', 'post', 'put'])) {
 				if (isset($extra_headers['content-type']) && $extra_headers['content-type'] === 'application/json') {
 					$this->assertSame('wtf', $json->json->huh);
 				} else {
@@ -213,10 +212,26 @@ class HyperTest extends TestCase
 
 	}
 
-    public function testNetworkError()
+	/**
+	 * @dataProvider requestDataProvider
+	 *
+	 * @param $method
+	 * @param $extra_headers
+	 */
+    public function testRequest(string $method, array $extra_headers)
+    {
+        \coroutine_run($this->taskRequest($method, $extra_headers));
+    }
+
+    public function taskNetworkError()
     {
 		$this->expectException(ClientExceptionInterface::class);
 
 		yield $this->http->sendRequest(new Request(Request::METHOD_GET, 'http://foo'));
+    }
+
+    public function testNetworkError()
+    {
+        \coroutine_run($this->taskNetworkError());
     }
 }

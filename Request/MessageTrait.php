@@ -16,6 +16,27 @@ use Psr\Http\Message\MessageInterface;
 trait MessageTrait
 {
     /**
+     * The requested options
+     *
+     * @var array
+     */
+    protected $options = [];
+
+
+    public function withOptions(array $options = [])
+    {
+        $message = clone $this;
+        $message->options = \array_merge($message->options, $options);
+
+        return $message;
+    }
+
+    public function getOptions(): array
+    {
+        return $this->options;
+    }
+
+    /**
      * @inheritDoc
      */
     public function getHeaderLine($name): string
