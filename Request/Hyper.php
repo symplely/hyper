@@ -164,15 +164,16 @@ class Hyper implements HyperInterface
         $defaultOptions = self::OPTIONS;
         $defaultHeaders = self::HEADERS;
 
-        if (isset($headerOptions[0]) && isset($headerOptions[1])) {
-            [$headers, $options] = $headerOptions;
-            $headers = (isset($headers['headers'][0])) ? [] : $headers;
-        } elseif (isset($headerOptions[0])) {
-            [$headers, $options] = [$headerOptions, null];
-            $headers = (isset($headers['headers'][0])) ? [] : $headers;
-        } else {
-            [$headers, $options] = null;
-        }
+        $headers = $options = [];
+        $index = 0;
+        \array_map(function($sections) use(&$headers, &$options , &$index) {
+            $index++;
+            if ($index == 1) {
+                $headers = (isset($sections['headers'][0])) ? [] : $sections;
+            } else {
+                $options = \array_merge($options, $sections);
+            }
+        }, $headerOptions);
 
         // Build out URI instance
         if (!$url instanceof UriInterface) {
@@ -388,8 +389,7 @@ class Hyper implements HyperInterface
 
 	protected function optionsHeaderSplicer(...$headersOptions): array
 	{
-        $options = [];
-        $header['headers'] = [];
+        $header['headers'] = $authorizer = $headers = $options = [];
         $headersOptions = \array_shift($headersOptions[0]);
         if (isset($headersOptions[0])) {
             $authorization = $this->authorization($headersOptions[0]);
@@ -398,12 +398,18 @@ class Hyper implements HyperInterface
             $authorize = [];
         }
 
-        if (isset($headersOptions[0]) && isset($headersOptions[1]) && isset($headersOptions[2])) {
-            [$authorizer, $headers, $options] =  $headersOptions;
-        } else {
-            [$authorizer, $headers] = (isset($headersOptions[0]) && isset($headersOptions[1]))
-                ? $headersOptions
-                : [$authorize, $headersOptions];
+        $index = 0;
+        if (is_array($headersOptions)) {
+            \array_map(function($sections) use(&$authorizer, &$headers, &$options, &$index) {
+                $index++;
+                if ($index == 1) {
+                    $authorizer = $sections;
+                } elseif ($index == 2) {
+                    $headers = $sections;
+                } else {
+                    $options = \array_merge($options, $sections);
+                }
+            }, $headersOptions);
         }
 
         $authorizer = $authorize;
