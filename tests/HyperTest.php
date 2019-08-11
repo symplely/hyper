@@ -161,66 +161,20 @@ class HyperTest extends TestCase
         \coroutine_run($this->taskSendRequest());
     }
 
-	public function requestDataProvider():array {
-		return [
-			'get'        => ['GET',    []],
-			'post'       => ['POST',   []],
-			'post-json'  => ['POST',   ['Content-type' => 'application/json']],
-			'post-form'  => ['POST',   ['Content-type' => 'application/x-www-form-urlencoded']],
-			'put-json'   => ['PUT',    ['Content-type' => 'application/json']],
-			'put-form'   => ['PUT',    ['Content-type' => 'application/x-www-form-urlencoded']],
-			'patch-json' => ['PATCH',  ['Content-type' => 'application/json']],
-			'patch-form' => ['PATCH',  ['Content-type' => 'application/x-www-form-urlencoded']],
-			'delete'     => ['DELETE', []],
-		];
+    public function taskRequest()
+    {
+        $response = yield $this->http->request(Request::METHOD_GET, self::TARGET_URLS.'bearer', null, ['type' => 'bearer', 'token' => '2323@#$@']);
+
+            $json = \json_decode(yield $response->getBody()->getContents());
+
+            $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
+			$this->assertSame(true, $json->authenticated);
+			$this->assertSame('2323@#$@', $json->token);
 	}
 
-    public function taskRequest(string $method, array $extra_headers)
+    public function testRequest()
     {
-		try {
-			$response = yield $this->http->request(
-				$method,
-				self::TARGET_URLS.$method, [
-				    ['foo' => 'bar'],
-				    ['huh' => 'wtf'],
-                    ['what' => 'nope'] + $extra_headers
-                ]
-			);
-
-		} catch(\Exception $e) {
-			echo('httpbin.org error: '.$e->getMessage());
-		}
-
-		$json = \json_decode(yield $response->getBody()->getContents());
-
-		if (!$json) {
-			echo('empty response');
-		} else {
-			$this->assertSame(self::TARGET_URLS.$method.'?foo=bar', $json->url);
-			$this->assertSame('bar', $json->args->foo);
-			$this->assertSame('nope', $json->headers->What);
-			$this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
-
-			if (\in_array($method, ['patch', 'post', 'put'])) {
-				if (isset($extra_headers['content-type']) && $extra_headers['content-type'] === 'application/json') {
-					$this->assertSame('wtf', $json->json->huh);
-				} else {
-					$this->assertSame('wtf', $json->form->huh);
-				}
-			}
-		}
-
-	}
-
-	/**
-	 * @dataProvider requestDataProvider
-	 *
-	 * @param $method
-	 * @param $extra_headers
-	 */
-    public function testRequest(string $method, array $extra_headers)
-    {
-        \coroutine_run($this->taskRequest($method, $extra_headers));
+        \coroutine_run($this->taskRequest());
     }
 
     public function taskNetworkError()

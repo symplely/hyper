@@ -362,7 +362,7 @@ class Hyper implements HyperInterface
 		return $filteredHeaders;
 	}
 
-    protected function authorization(array $authorize): string
+    protected function authorization(array $authorize = null): string
     {
         $authorization = '';
         if (isset($authorize['type'])) {
@@ -387,23 +387,26 @@ class Hyper implements HyperInterface
         return $authorization;
     }
 
-	protected function optionsHeaderSplicer(...$headersOptions): array
+	protected function optionsHeaderSplicer(array ...$headersOptions): array
 	{
+        if (empty($headersOptions))
+            return [];
+
+        $headersOptions = $headersOptions[0];
         $header['headers'] = $authorizer = $headers = $options = [];
-        $headersOptions = \array_shift($headersOptions[0]);
-        if (isset($headersOptions[0])) {
-            $authorization = $this->authorization($headersOptions[0]);
-            $authorize = !empty($authorization) ? ['Authorization' => $authorization] : null;
-        } else {
-            $authorize = [];
+        if (isset($headersOptions[0][0])) {
+            $temp = \array_shift($headersOptions);
+            if (empty($headersOptions))
+                $headersOptions = $temp;
         }
 
         $index = 0;
-        if (is_array($headersOptions)) {
+        if (\is_array($headersOptions)) {
             \array_map(function($sections) use(&$authorizer, &$headers, &$options, &$index) {
                 $index++;
                 if ($index == 1) {
-                    $authorizer = $sections;
+                    $authorization = $this->authorization($sections);
+                    $authorizer = !empty($authorization) ? ['Authorization' => $authorization] : [];
                 } elseif ($index == 2) {
                     $headers = $sections;
                 } else {
@@ -412,7 +415,6 @@ class Hyper implements HyperInterface
             }, $headersOptions);
         }
 
-        $authorizer = $authorize;
         if (!empty($authorizer))
             $combined = \array_merge($authorizer, $headers);
         else
