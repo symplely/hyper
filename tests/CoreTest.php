@@ -25,7 +25,7 @@ class CoreTest extends TestCase
     {
         $statuses = ['200' => 0, '400' => 0];
         foreach($websites as $website) {
-            $tasks[] = yield \await([$this, 'get_website_status'], $website);
+            $tasks[] = yield \await($this->get_website_status($website));
         }
 
         $taskStatus = yield \gather($tasks);
@@ -43,21 +43,25 @@ class CoreTest extends TestCase
 
     public function get_website_status($url)
     {
-        $response = yield \http_head();
-        $this->assertFalse($response);
         $response = yield \http_head($url);
         \http_clear();
         $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $response);
         $status = $response->getStatusCode();
         $this->assertEquals(200, $status);
-        return $status;
+        return yield $status;
     }
 
     public function taskRequestHead()
     {
         if (\is_array($this->websites)) {
-            $int = yield \request(\http_head(self::TARGET_URL));
+            $int = yield \request(\http_head('test', self::TARGET_URL));
             $this->assertEquals('int', \is_type($int));
+            yield \request_cancel($int);
+            $response = yield \http_head('test');
+            $this->assertFalse($response);
+            \http_clear('test');
+            $response = yield \http_head();
+            $this->assertFalse($response);
             $data = yield from $this->get_statuses($this->websites);
             $this->expectOutputString('{"200":3,"400":0}');
             print $data;

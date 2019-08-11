@@ -226,6 +226,16 @@ if (!\function_exists('hyper')) {
     }
 
 	/**
+     * This function works similar to `cancel_task()`.
+     *
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function request_cancel(int $tid)
+	{
+		return Kernel::cancelTask($tid);
+    }
+
+	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
 	function http_put(string $tagUri = null, ...$options)
@@ -355,6 +365,8 @@ if (!\function_exists('hyper')) {
         } elseif (!empty($options)) {
             $tag = \array_shift($options);
             $instance = \http_instance($tag);
+        } else {
+            return null;
         }
 
         return [$tag, $instance, $options];

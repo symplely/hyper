@@ -261,7 +261,12 @@ class Hyper implements HyperInterface
 			'header' => $this->buildRequestHeaders($request->getHeaders()),
         ]);
 
-        $context = ['http' => $options];
+        $context = [
+            'http' => $options,
+            'ssl' => [
+                'disable_compression' => true
+            ]
+        ];
 
         if ($request->getBody()->getSize()) {
             if ($request->getBody() instanceof BodyInterface)
@@ -364,23 +369,29 @@ class Hyper implements HyperInterface
 
     protected function authorization(array $authorize = null): string
     {
+        if (empty($authorize))
+            return '';
+
         $authorization = '';
-        if (isset($authorize['type'])) {
-            if ($authorize['type'] =='basic' && !empty($authorize['username']) && !empty($authorize['password'])) {
-                $authorization = 'Basic ' . \base64_encode($authorize['username'] . ':' . $authorize['password']);
-            } elseif ($authorize['type'] =='bearer' && !empty($authorize['token'])) {
-                $authorization = 'Bearer ' . $authorize['token'];
-            } elseif ($authorize['type']=='digest' && !empty($authorize['username'])) {
-                $authorization = 'Digest ';
-                foreach ($authorize as $k => $v) {
-                    if (empty($k) || empty($v))
-                        continue;
+        if (isset($authorize['auth_basic']) && isset($authorize['auth_basic'][0]) && isset($authorize['auth_basic'][1])) {
+            // HTTP Basic authentication with a username and a password
+            $authorization = 'Basic ' . \base64_encode($authorize['auth_basic'][0] . ':' . $authorize['auth_basic'][1]);
+        } elseif (isset($authorize['auth_basic']) && isset($authorize['auth_basic'][0])) {
+            // HTTP Basic authentication with only the username and not a password
+            $authorization = 'Basic ' . \base64_encode($authorize['auth_basic'][0]);
+        } elseif (isset($authorize['auth_bearer'])) {
+            // HTTP Bearer authentication (also called token authentication)
+            $authorization = 'Bearer ' . $authorize['auth_bearer'];
+        } elseif (isset($authorize['auth_digest']) && isset($authorize['auth_digest'][0])) {
+            $authorization = 'Digest ';
+            foreach ($authorize as $k => $v) {
+                if (empty($k) || empty($v))
+                    continue;
 
-                    if ($k == 'password')
-                        continue;
+                if ($k == 'password')
+                    continue;
 
-                    $authorization .= $k . '="' . $v . '", ';
-                }
+                $authorization .= $k . '="' . $v . '", ';
             }
         }
 
@@ -405,8 +416,10 @@ class Hyper implements HyperInterface
             \array_map(function($sections) use(&$authorizer, &$headers, &$options, &$index) {
                 $index++;
                 if ($index == 1) {
-                    $authorization = $this->authorization($sections);
-                    $authorizer = !empty($authorization) ? ['Authorization' => $authorization] : [];
+                    if (!empty($sections)) {
+                        $authorization = $this->authorization($sections);
+                        $authorizer = !empty($authorization) ? ['Authorization' => $authorization] : [];
+                    }
                 } elseif ($index == 2) {
                     $headers = $sections;
                 } else {
@@ -423,6 +436,6 @@ class Hyper implements HyperInterface
         if (!empty($combined))
             $header['headers'] = $combined;
 
-		return !empty($header['headers']) ? [$header, $options] : [];
+		return !empty($header['headers']) ? [$header, $options] : [[], $options];
     }
 }

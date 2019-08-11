@@ -126,12 +126,14 @@ class HyperTest extends TestCase
     {
         $response = yield $this->http->get(self::TARGET_URLS.'get',
             [],
-            ['X-Added-Header' => 'Symplely!'],
+            ['X-Added-Header' => 'Symplely!', 'X-Http-Client' => 'Hyper'],
             ['timeout' => 5]
         );
+        $json = \json_decode(yield $response->getBody()->getContents());
 
         $this->assertTrue($response->hasHeader('X-Content-Type-Options'));
-        $this->assertContains("X-Added-Header", yield $response->getBody()->getContents());
+        $this->assertSame('Symplely!', $json->headers->{'X-Added-Header'});
+        $this->assertSame('Hyper', $json->headers->{'X-Http-Client'});
     }
 
     public function test_send_request_with_added_headers()
@@ -139,21 +141,15 @@ class HyperTest extends TestCase
         \coroutine_run($this->task_send_request_with_added_headers());
     }
 
-
 	public function taskSendRequest()
 	{
-		try {
-			$url = self::TARGET_URLS.'get';
-			$response = yield $this->http->sendRequest(new Request(Request::METHOD_GET, $url));
-			$json = \json_decode(yield $response->getBody()->getContents());
+        $url = self::TARGET_URLS.'get';
+        $response = yield $this->http->sendRequest(new Request(Request::METHOD_GET, $url));
+        $json = \json_decode(yield $response->getBody()->getContents());
 
-			$this->assertSame($url, $json->url);
-			$this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
-			$this->assertSame(Response::STATUS_OK, $response->getStatusCode());
-		} catch(\Exception $e) {
-			$this->markTestSkipped('httpbin.org error: '.$e->getMessage());
-		}
-
+        $this->assertSame($url, $json->url);
+        $this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
+        $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
 	}
 
     public function testSendRequest()
@@ -161,20 +157,24 @@ class HyperTest extends TestCase
         \coroutine_run($this->taskSendRequest());
     }
 
-    public function taskRequest()
+    public function taskRequestBearer()
     {
-        $response = yield $this->http->request(Request::METHOD_GET, self::TARGET_URLS.'bearer', null, ['type' => 'bearer', 'token' => '2323@#$@']);
+        $response = yield $this->http->request(Request::METHOD_GET,
+            self::TARGET_URLS.'bearer',
+            null,
+            ['auth_bearer' => '2323@#$@']
+        );
 
-            $json = \json_decode(yield $response->getBody()->getContents());
+        $json = \json_decode(yield $response->getBody()->getContents());
 
-            $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
-			$this->assertSame(true, $json->authenticated);
-			$this->assertSame('2323@#$@', $json->token);
+        $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
+        $this->assertSame(true, $json->authenticated);
+        $this->assertSame('2323@#$@', $json->token);
 	}
 
-    public function testRequest()
+    public function testRequestBearer()
     {
-        \coroutine_run($this->taskRequest());
+        \coroutine_run($this->taskRequestBearer());
     }
 
     public function taskNetworkError()
