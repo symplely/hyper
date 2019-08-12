@@ -216,13 +216,16 @@ if (!\function_exists('hyper')) {
      *
      * @param array|RequestInterface ...$requestInstance - If an array will covert to an Request instance
      *
-     * @return int request task id that will resolve to an ResponseInterface instance when `fetch()`
+     * @return int request HTTP id that will resolve to an ResponseInterface instance when `fetch()`
      *
 	 * - This function needs to be prefixed with `yield`
 	 */
 	function request($request)
 	{
         return Kernel::await($request);
+        //$requestId = yield Hyper::await($request);
+        //\response_set($response, (string) $requestId);
+        //return $requestId;
     }
 
 	/**

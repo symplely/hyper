@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Async\Request;
 
+use Async\Coroutine\Kernel;
+use Async\Coroutine\Coroutine;
+use Async\Coroutine\TaskInterface;
 use Async\Request\Uri;
 use Async\Request\Request;
 use Async\Request\Response;
@@ -51,6 +54,24 @@ class Hyper implements HyperInterface
         'timeout' => 30,
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
+
+	/**
+	 * Create an new HTTP request background task
+	 *
+	 * @return int request HTTP id
+	 */
+	public static function await(\Generator $httpFunction, RequestInterface $request = null)
+	{
+		return new Kernel(
+			function(TaskInterface $task, Coroutine $coroutine) use ($httpFunction, $request) {
+				$task->customState('beginning');
+                $task->customData($request);
+                $httpId = $coroutine->createTask($httpFunction);
+				$task->sendValue($httpId);
+				$coroutine->schedule($task);
+			}
+		);
+    }
 
     /**
      * Make a GET call.
