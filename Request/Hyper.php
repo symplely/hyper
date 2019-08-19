@@ -19,6 +19,7 @@ use Async\Request\Exception\RequestException;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * Class Hyper
@@ -148,7 +149,9 @@ class Hyper implements HyperInterface
 						} elseif ($tasks->erred()) {
                             $http = $tasks->getCustomData();
                             [, $stream] = $http->getHyper();
-                            $stream->close();
+                            if ($stream instanceof StreamInterface)
+                                $stream->close();
+
 							$count--;
 							unset($taskList[$id]);
 							self::updateList($coroutine, $id);
@@ -162,7 +165,9 @@ class Hyper implements HyperInterface
 						} elseif ($tasks->cancelled()) {
                             $http = $tasks->getCustomData();
                             [, $stream] = $http->getHyper();
-                            $stream->close();
+                            if ($stream instanceof StreamInterface)
+                                $stream->close();
+
 							$count--;
 							unset($taskList[$id]);
 							self::updateList($coroutine, $id);
@@ -222,7 +227,9 @@ class Hyper implements HyperInterface
                     $taskList[$httpId]->customState('aborted');
                     $http = $taskList[$httpId]->getCustomData();
                     [, $stream] = $http->getHyper();
-                    $stream->close();
+                    if ($stream instanceof StreamInterface)
+                        $stream->close();
+
 					$task->sendValue($coroutine->cancelTask($httpId));
 					$coroutine->schedule($task);
 				} else {

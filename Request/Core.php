@@ -2,13 +2,9 @@
 
 declare(strict_types = 1);
 
-use Async\Request\Uri;
-use Async\Request\Request;
-use Async\Request\Response;
 use Async\Request\Hyper;
 use Async\Request\HyperInterface;
 use Async\Request\BodyInterface;
-use Async\Coroutine\Kernel;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -486,80 +482,32 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * @param ResponseInterface $response
+     * @param $tag
      * @param bool|null $assoc
      *
      * @return \stdClass|array|bool
+     *
+	 * - This function needs to be prefixed with `yield`
      */
-    function get_json(ResponseInterface $response, bool $assoc = null)
+    function response_json($tag = null, bool $assoc = null)
     {
-        return \json_decode(yield $response->getBody()->getContents(), $assoc);
+        return \json_decode(yield \response_instance($tag)->getBody()->getContents(), $assoc);
     }
 
     /**
-     * @param ResponseInterface $response
+     * @param $tag
      * @param bool|null $assoc
      *
      * @return \SimpleXMLElement|array|bool
+     *
+	 * - This function needs to be prefixed with `yield`
      */
-    function get_xml(ResponseInterface $response, bool $assoc = null)
+    function response_xml($tag = null, bool $assoc = null)
     {
-        $data = \simplexml_load_string(yield $response->getBody()->getContents());
+        $data = \simplexml_load_string(yield \response_instance($tag)->getBody()->getContents());
 
         return $assoc === true
             ? \json_decode(\json_encode($data), true) // cruel
             : $data;
-    }
-
-    /**
-     * Returns the string representation of an HTTP message.
-     *
-     * @param MessageInterface $message Message to convert to a string.
-     *
-     * @return string
-     */
-    function message_to_string(MessageInterface $message)
-    {
-        $msg = '';
-
-        if ($message instanceof RequestInterface) {
-            $msg = \trim($message->getMethod().' '.$message->getRequestTarget()).' HTTP/'.$message->getProtocolVersion();
-
-            if (!$message->hasHeader('host')) {
-                $msg .= "\r\nHost: ".$message->getUri()->getHost();
-            }
-
-        } elseif ($message instanceof ResponseInterface) {
-            $msg = 'HTTP/'.$message->getProtocolVersion().' '.$message->getStatusCode().' '.$message->getReasonPhrase();
-        }
-
-        foreach ($message->getHeaders() as $name => $values) {
-            $msg .= "\r\n".$name.': '.\implode(', ', $values);
-        }
-
-        return $msg."\r\n\r\n".yield $message->getBody()->getContents();
-    }
-
-    /**
-     * Decompresses the message content according to the Content-Encoding header and returns the decompressed data
-     *
-     * @param MessageInterface $message
-     *
-     * @return string
-     */
-    function decompress_content(MessageInterface $message)
-    {
-        $data = yield $message->getBody()->getContents();
-
-        switch($message->getHeaderLine('content-encoding')) {
-            case 'compress':
-                return \gzuncompress($data);
-            case 'deflate' :
-                return \gzinflate($data);
-            case 'gzip'    :
-                return \gzdecode($data);
-            default:
-                return $data;
-        }
     }
 }

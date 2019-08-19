@@ -55,7 +55,7 @@ class CoreTest extends TestCase
     {
         $int = yield \request(\http_head('test', self::TARGET_URL));
         $this->assertEquals('int', \is_type($int));
-        yield \request_cancel($int);
+        yield \request_abort($int);
         $response = yield \http_head('test');
         $this->assertFalse($response);
         \http_clear('test');
