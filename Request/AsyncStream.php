@@ -238,7 +238,7 @@ class AsyncStream implements StreamInterface
 
 		if(\is_resource($handle)) {
 			\fclose($handle);
-        }        
+        }
     }
 
     /**
@@ -418,7 +418,6 @@ class AsyncStream implements StreamInterface
         }
 
         return null;
-
     }
 
     /**

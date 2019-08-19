@@ -55,20 +55,179 @@ class Hyper implements HyperInterface
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 
+    /**
+     * @var \Psr\Http\Message\StreamInterface
+     */
+    protected $stream = null;
+
+    /**
+     * @var RequestInterface
+     */
+    protected $request = null;
+
+    protected static $waitResumer = null;
+    protected static $waitCount = 0;
+    protected static $waitShouldError = true;
+
+	public function getHyper()
+	{
+        $request = $this->request;
+        $stream = $this->stream;
+        $this->stream = null;
+        $this->request = null;
+
+        return [$request, $stream];
+    }
+
+	public static function waitOptions(int $count = 0, bool $exception = true)
+	{
+		self::$waitCount = $count;
+		self::$waitShouldError = $exception;
+    }
+
+    public static function wait(array $httpId)
+    {
+        return new Kernel(
+			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
+			$httpList = $httpId;
+
+			$response = [];
+			$count = $initialCount = \count($httpId);
+			$waitSet = (self::$waitCount > 0);
+			if ($waitSet) {
+				if ($initialCount < self::$waitCount) {
+                    $count = self::$waitCount;
+                    self::waitOptions();
+					throw new \LengthException(\sprintf('The (%d) HTTP tasks, not enough to fulfill the `waitOptions(%d)` request count!', $initialCount, $count));
+				}
+			}
+
+			$taskList = $coroutine->taskList();
+			$completeList = $coroutine->completedList();
+            $countComplete = \count($completeList);
+            $waitCompleteCount = 0;
+			if ($countComplete > 0) {
+				foreach($completeList as $id => $tasks) {
+					if (isset($httpList[$id])) {
+                        $tasks->customState('ended');
+                        $tasks->getCustomData()->getHyper();
+						$response[$id] = $tasks->result();
+                        $count--;
+                        $waitCompleteCount++;
+						unset($httpList[$id]);
+                        self::updateList($coroutine, $id, $completeList);
+                        if ($waitCompleteCount >= self::$waitCount)
+                            break;
+					}
+				}
+			}
+
+            if ($waitSet) {
+                $subCount =  (self::$waitCount - $waitCompleteCount);
+                if  (($waitCompleteCount >= self::$waitCount) || ($count >= self::$waitCount)) {
+                    $count = $subCount;
+                }
+            }
+
+			while ($count > 0) {
+				foreach($httpList as $id) {
+					if (isset($taskList[$id])) {
+						$tasks = $taskList[$id];
+                        if ($tasks->isCustomState('beginning')
+                            && ($tasks->pending() || $tasks->rescheduled())
+                        ) {
+                            $tasks->customState();
+							$coroutine->runCoroutines();
+						} elseif ($tasks->completed()) {
+                            $tasks->customState('ended');
+                            $tasks->getCustomData()->getHyper();
+							$response[$id] = $tasks->result();
+							$count--;
+                            unset($taskList[$id]);
+							self::updateList($coroutine, $id);
+						} elseif ($tasks->erred()) {
+                            $http = $tasks->getCustomData();
+                            [, $stream] = $http->getHyper();
+                            $stream->close();
+							$count--;
+							unset($taskList[$id]);
+							self::updateList($coroutine, $id);
+							$exception = $tasks->exception();
+                            if (self::$waitShouldError) {
+                                self::waitOptions();
+                                self::$waitResumer = [$httpList, $count, $response, $taskList];
+                                $task->setException($exception);
+                                $coroutine->schedule($tasks);
+                            }
+						} elseif ($tasks->cancelled()) {
+                            $http = $tasks->getCustomData();
+                            [, $stream] = $http->getHyper();
+                            $stream->close();
+							$count--;
+							unset($taskList[$id]);
+							self::updateList($coroutine, $id);
+                            if (self::$waitShouldError) {
+                                self::waitOptions();
+                                self::$waitResumer = [$httpList, $count, $response, $taskList];
+                                $task->setException(new CancelledError());
+                                $coroutine->schedule($tasks);
+                            }
+						}
+					}
+				}
+			}
+
+            self::waitOptions();
+			self::$waitResumer = null;
+			$task->sendValue($response);
+			$coroutine->schedule($task);
+		});
+    }
+
+	protected static function updateList(Coroutine $coroutine, int $id, array $completeList = [])
+	{
+		if (empty($completeList)) {
+			$completeList = $coroutine->completedList();
+		}
+
+		unset($completeList[$id]);
+		$coroutine->updateCompleted($completeList);
+    }
+
 	/**
 	 * Create an new HTTP request background task
 	 *
 	 * @return int request HTTP id
 	 */
-	public static function await(\Generator $httpFunction, RequestInterface $request = null)
+	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper = null)
 	{
 		return new Kernel(
-			function(TaskInterface $task, Coroutine $coroutine) use ($httpFunction, $request) {
-				$task->customState('beginning');
-                $task->customData($request);
+			function(TaskInterface $task, Coroutine $coroutine) use ($httpFunction, $hyper) {
                 $httpId = $coroutine->createTask($httpFunction);
-				$task->sendValue($httpId);
+                $taskList = $coroutine->taskList();
+				$taskList[$httpId]->customState('beginning');
+                $taskList[$httpId]->customData($hyper);
+                $task->sendValue($httpId);
 				$coroutine->schedule($task);
+			}
+		);
+    }
+
+	public static function cancel(int $httpId)
+	{
+		return new Kernel(
+			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
+                $taskList = $coroutine->taskList();
+				if (isset($taskList[$httpId])) {
+                    $taskList[$httpId]->customState('aborted');
+                    $http = $taskList[$httpId]->getCustomData();
+                    [, $stream] = $http->getHyper();
+                    $stream->close();
+					$task->sendValue($coroutine->cancelTask($httpId));
+					$coroutine->schedule($task);
+				} else {
+					throw new \InvalidArgumentException('Invalid HTTP task ID!');
+				}
 			}
 		);
     }
@@ -83,7 +242,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions);
+        $response = yield $this->sendRequest(
+            $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions)
+        );
 
         return $response;
     }
@@ -98,7 +259,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_POST, $url, $data, ...$authorizeHeaderOptions);
+        $response = yield $this->sendRequest(
+            $this->request(Request::METHOD_POST, $url, $data, ...$authorizeHeaderOptions)
+        );
 
         return $response;
     }
@@ -113,7 +276,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions);
+        $response = yield $this->sendRequest(
+            $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions)
+        );
 
         if ($response->getStatusCode() === 405) {
             $response = yield $this->get($url, $authorizeHeaderOptions);
@@ -132,7 +297,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions);
+        $response = yield $this->sendRequest(
+            $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions)
+        );
 
         return $response;
     }
@@ -147,7 +314,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions);
+        $response = yield $this->sendRequest(
+            $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions)
+        );
 
         return $response;
     }
@@ -162,7 +331,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions);
+        $response = yield $this->sendRequest(
+            $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions)
+        );
 
         return $response;
     }
@@ -174,12 +345,17 @@ class Hyper implements HyperInterface
      */
     public function options(string $url = null, array ...$authorizeHeaderOptions)
     {
-        $response = yield $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions);
+        if (empty($url))
+            return false;
+
+        $response = yield $this->sendRequest(
+            $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions)
+        );
 
         return $response;
     }
 
-    public function request($method, $url, $body = null, array ...$authorizeHeaderOptions)
+    public function request($method, $url, $body = null, array ...$authorizeHeaderOptions): RequestInterface
     {
         $headerOptions = $this->optionsHeaderSplicer($authorizeHeaderOptions);
         $defaultOptions = self::OPTIONS;
@@ -260,7 +436,7 @@ class Hyper implements HyperInterface
             $request = $request->withBody($body);
         }
 
-        return $this->sendRequest($request);
+        return $request;
     }
 
     /**
@@ -309,20 +485,27 @@ class Hyper implements HyperInterface
             throw $e;
         }
 
-        $stream = yield AsyncStream::copyResource($resource);
-
         $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
+        $stream = yield AsyncStream::copyResource($resource);
+        \fclose($resource);
+
+        $this->request = $request;
+        $this->stream = $stream;
+
         if ($option['follow_location']) {
             $headers = $this->filterResponseHeaders($headers);
         }
-
-        \fclose($resource);
 
         $parts = \explode(' ', \array_shift($headers), 3);
         $version = \explode('/', $parts[0])[1];
         $status = (int)$parts[1];
 
-        $response = Response::create($status)
+        $method = $request->getMethod();
+        if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
+            $response = Response::create($status)
+            ->withProtocolVersion($version);
+        else
+            $response = Response::create($status)
             ->withProtocolVersion($version)
             ->withBody($stream);
 

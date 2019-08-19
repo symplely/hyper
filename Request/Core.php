@@ -149,6 +149,97 @@ if (!\function_exists('hyper')) {
 	\define('TYPE_JSON', BodyInterface::JSON_TYPE);
 	\define('TYPE_FORM', BodyInterface::FORM_TYPE);
 
+    function hyper()
+    {
+        return true;
+    }
+
+	/**
+     * This function works similar to `gather()`.
+     * Take request task id's, if not covert to request object
+     *
+     * Parameters are identical to those of the `Request()` constructor.
+     * @param ...$request either
+     *
+     * @param string
+     * @param RequestInterface
+     * @param Generator
+     * @param array
+     * - `$method`, `$url`, `$data`, `$options`
+     *
+     * @return array<ResponseInterface>
+     *
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function fetch(...$request)
+	{
+        $http = [];
+        $httpList = \is_array($request[0]) ? $request[0] : $request;
+        foreach($httpList as $id => $request) {
+            if (\is_int($request)) {
+                $http[$request] = $request;
+            } else {
+                $id = yield \request($request);
+                $http[$id] = $id;
+            }
+        }
+
+        return Hyper::wait($http);
+    }
+
+	/**
+     * This function works similar to `await()`.
+     * Will resolve to an ResponseInterface instance when `fetch()`
+     *
+     * @param ...$request either
+     *
+     * @param string
+     * @param RequestInterface
+     * @param Generator
+     * @param array
+     * - `$method`, `$url`, `$data`, `$options`
+     *
+     * @return int HTTP task id
+     *
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function request()
+	{
+		$args = \func_get_args();
+        $isRequest = \array_shift($args);
+        if (\is_string($isRequest)) {
+            $tag = $isRequest;
+            $isRequest = $args;
+        } else {
+            $tag = null;
+        }
+
+        $http = \http_instance($tag);
+        if ($isRequest instanceof RequestInterface) {
+            $httpFunction = $http->sendRequest($isRequest);
+        } elseif ($isRequest instanceof \Generator) {
+            $httpFunction = $isRequest;
+        } elseif (\is_array($isRequest)) {
+            $method = \array_shift($isRequest);
+            $url = \array_shift($isRequest);
+            $data = \array_shift($isRequest);
+            $request = $http->request($method, $url, $data, $isRequest);
+            $httpFunction = $http->sendRequest($request);
+        }
+
+        return Hyper::awaitable($httpFunction, $http);
+    }
+
+	/**
+     * This function works similar to `cancel_task()`.
+     *
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function request_abort(int $httpId)
+	{
+		return Hyper::cancel($httpId);
+    }
+
 	function http_instance(string $tag = null): HyperInterface
 	{
 		global $__uri__, $__uriTag__;
@@ -184,65 +275,33 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$url, $instance, $options] = \createTagAndSplit($tagUri, $options);
-
+        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->get($url, $options);
 
-            return $response;
+            return \response_set($response, $tag);
         }
 
         return false;
 	}
 
 	/**
-     * This function works similar to `gather()`.
-     *
-     * Parameters are identical to those of the `Request()` constructor.
-     *
-     * @param string|int|array|RequestInterface ...$count - If supplied as string, resolve/exit when the number is reached
-     * @param int|array|RequestInterface ...$requestInstance request task id's, if array covert to request object
-     *
-     * @return array<ResponseInterface>
-     *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function fetch(...$requestInstance)
-	{
-    }
-
-	/**
-     * This function works similar to `await()`.
-     *
-     * @param array|RequestInterface ...$requestInstance - If an array will covert to an Request instance
-     *
-     * @return int request HTTP id that will resolve to an ResponseInterface instance when `fetch()`
-     *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function request($request)
-	{
-        return Kernel::await($request);
-        //$requestId = yield Hyper::await($request);
-        //\response_set($response, (string) $requestId);
-        //return $requestId;
-    }
-
-	/**
-     * This function works similar to `cancel_task()`.
-     *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function request_cancel(int $tid)
-	{
-		return Kernel::cancelTask($tid);
-    }
-
-	/**
 	 * - This function needs to be prefixed with `yield`
 	 */
 	function http_put(string $tagUri = null, ...$options)
 	{
+		if (empty($tagUri))
+            return false;
+
+        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        if (isset($instance) && $instance instanceof HyperInterface) {
+            $data = \array_shift($options);
+            $response = yield $instance->put($url, $data, $options);
+
+            return \response_set($response, $tag);
+        }
+
+        return false;
 	}
 
 	/**
@@ -250,6 +309,18 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_delete(string $tagUri = null, ...$options)
 	{
+		if (empty($tagUri))
+            return false;
+
+        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        if (isset($instance) && $instance instanceof HyperInterface) {
+            $data = \array_shift($options);
+            $response = yield $instance->delete($url, $data, $options);
+
+            return \response_set($response, $tag);
+        }
+
+        return false;
 	}
 
 	/**
@@ -257,6 +328,18 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_post(string $tagUri = null, ...$options)
 	{
+		if (empty($tagUri))
+            return false;
+
+        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        if (isset($instance) && $instance instanceof HyperInterface) {
+            $data = \array_shift($options);
+            $response = yield $instance->post($url, $data, $options);
+
+            return \response_set($response, $tag);
+        }
+
+        return false;
 	}
 
 	/**
@@ -264,6 +347,18 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_patch(string $tagUri = null, ...$options)
 	{
+		if (empty($tagUri))
+            return false;
+
+        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        if (isset($instance) && $instance instanceof HyperInterface) {
+            $data = \array_shift($options);
+            $response = yield $instance->patch($url, $data, $options);
+
+            return \response_set($response, $tag);
+        }
+
+        return false;
 	}
 
 	/**
@@ -271,6 +366,17 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_options(string $tagUri = null, ...$options)
 	{
+		if (empty($tagUri))
+            return false;
+
+        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        if (isset($instance) && $instance instanceof HyperInterface) {
+            $response = yield $instance->options($url, $options);
+
+            return \response_set($response, $tag);
+        }
+
+        return false;
 	}
 
 	/**
@@ -281,14 +387,31 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->head($url, $options);
 
-            return $response;
+            return \response_set($response, $tag);
         }
 
         return false;
+    }
+
+    function createTagAndSplit($tag, $options = [])
+    {
+        $instance = null;
+        if (\strpos($tag, '://') !== false) {
+            $url = $tag;
+            $tag = null;
+            $instance = \http_instance();
+        } elseif (!empty($options)) {
+            $url = \array_shift($options);
+            $instance = \http_instance($tag);
+        } else {
+            return null;
+        }
+
+        return [$tag, $url, $instance, $options];
     }
 
 	function response()
@@ -304,6 +427,8 @@ if (!\function_exists('hyper')) {
         } else {
             $__uriResponseTag__[$tag] = $response;
         }
+
+        return $response;
     }
 
 	function response_clear($tag = null)
@@ -358,26 +483,6 @@ if (!\function_exists('hyper')) {
 	function response_code($tag = null): int
 	{
         return \response_instance($tag)->getStatusCode();
-    }
-
-    function createTagAndSplit($tag, $options = [])
-    {
-        $instance = null;
-        if (\strpos($tag, '://') !== false) {
-            $instance = \http_instance();
-        } elseif (!empty($options)) {
-            $tag = \array_shift($options);
-            $instance = \http_instance($tag);
-        } else {
-            return null;
-        }
-
-        return [$tag, $instance, $options];
-    }
-
-    function hyper()
-    {
-        return true;
     }
 
     /**

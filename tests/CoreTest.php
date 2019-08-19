@@ -53,19 +53,17 @@ class CoreTest extends TestCase
 
     public function taskRequestHead()
     {
-        if (\is_array($this->websites)) {
-            $int = yield \request(\http_head('test', self::TARGET_URL));
-            $this->assertEquals('int', \is_type($int));
-            yield \request_cancel($int);
-            $response = yield \http_head('test');
-            $this->assertFalse($response);
-            \http_clear('test');
-            $response = yield \http_head();
-            $this->assertFalse($response);
-            $data = yield from $this->get_statuses($this->websites);
-            $this->expectOutputString('{"200":3,"400":0}');
-            print $data;
-        }
+        $int = yield \request(\http_head('test', self::TARGET_URL));
+        $this->assertEquals('int', \is_type($int));
+        yield \request_cancel($int);
+        $response = yield \http_head('test');
+        $this->assertFalse($response);
+        \http_clear('test');
+        $response = yield \http_head();
+        $this->assertFalse($response);
+        $data = yield from $this->get_statuses($this->websites);
+        $this->expectOutputString('{"200":3,"400":0}');
+        print $data;
     }
 
     public function testRequestHead()

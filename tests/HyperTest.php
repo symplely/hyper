@@ -159,10 +159,11 @@ class HyperTest extends TestCase
 
     public function taskRequestBearer()
     {
-        $response = yield $this->http->request(Request::METHOD_GET,
+        $response = yield $this->http->sendRequest(
+            $this->http->request(Request::METHOD_GET,
             self::TARGET_URLS.'bearer',
             null,
-            ['auth_bearer' => '2323@#$@']
+            ['auth_bearer' => '2323@#$@'])
         );
 
         $json = \json_decode(yield $response->getBody()->getContents());
