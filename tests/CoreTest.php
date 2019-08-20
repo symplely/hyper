@@ -46,7 +46,8 @@ class CoreTest extends TestCase
         $response = yield \http_head($url);
         \http_clear();
         $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $response);
-        $status = $response->getStatusCode();
+        $this->assertTrue(\response_ok($response));
+        $status = \response_code($response);
         $this->assertEquals(200, $status);
         return yield $status;
     }
