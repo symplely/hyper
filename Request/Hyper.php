@@ -80,12 +80,18 @@ class Hyper implements HyperInterface
         return [$request, $stream];
     }
 
+    /**
+     * @inheritdoc
+     */
 	public static function waitOptions(int $count = 0, bool $exception = true)
 	{
 		self::$waitCount = $count;
 		self::$waitShouldError = $exception;
     }
 
+    /**
+     * @inheritdoc
+     */
     public static function wait(array $httpId)
     {
         return new Kernel(
@@ -130,6 +136,8 @@ class Hyper implements HyperInterface
                 }
             }
 
+            $waitShouldError = self::$waitShouldError;
+            self::waitOptions();
 			while ($count > 0) {
 				foreach($httpList as $id) {
 					if (isset($taskList[$id])) {
@@ -156,8 +164,7 @@ class Hyper implements HyperInterface
 							unset($taskList[$id]);
 							self::updateList($coroutine, $id);
 							$exception = $tasks->exception();
-                            if (self::$waitShouldError) {
-                                self::waitOptions();
+                            if ($waitShouldError) {
                                 self::$waitResumer = [$httpList, $count, $response, $taskList];
                                 $task->setException($exception);
                                 $coroutine->schedule($tasks);
@@ -171,8 +178,7 @@ class Hyper implements HyperInterface
 							$count--;
 							unset($taskList[$id]);
 							self::updateList($coroutine, $id);
-                            if (self::$waitShouldError) {
-                                self::waitOptions();
+                            if ($waitShouldError) {
                                 self::$waitResumer = [$httpList, $count, $response, $taskList];
                                 $task->setException(new CancelledError());
                                 $coroutine->schedule($tasks);
@@ -182,7 +188,6 @@ class Hyper implements HyperInterface
 				}
 			}
 
-            self::waitOptions();
 			self::$waitResumer = null;
 			$task->sendValue($response);
 			$coroutine->schedule($task);
@@ -199,12 +204,10 @@ class Hyper implements HyperInterface
 		$coroutine->updateCompleted($completeList);
     }
 
-	/**
-	 * Create an new HTTP request background task
-	 *
-	 * @return int request HTTP id
-	 */
-	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper = null)
+    /**
+     * @inheritdoc
+     */
+	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper)
 	{
 		return new Kernel(
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpFunction, $hyper) {
@@ -218,6 +221,9 @@ class Hyper implements HyperInterface
 		);
     }
 
+    /**
+     * @inheritdoc
+     */
 	public static function cancel(int $httpId)
 	{
 		return new Kernel(
@@ -240,9 +246,7 @@ class Hyper implements HyperInterface
     }
 
     /**
-     * Make a GET call.
-     *
-     * @return ResponseInterface|bool
+     * @inheritdoc
      */
     public function get(string $url = null, array ...$authorizeHeaderOptions)
     {
@@ -257,9 +261,7 @@ class Hyper implements HyperInterface
     }
 
     /**
-     * Make a POST call.
-     *
-     * @return ResponseInterface|bool
+     * @inheritdoc
      */
     public function post(string $url = null, $data = null, array ...$authorizeHeaderOptions)
     {
@@ -274,9 +276,7 @@ class Hyper implements HyperInterface
     }
 
     /**
-     * Make a HEAD call.
-     *
-     * @return ResponseInterface|bool
+     * @inheritdoc
      */
     public function head(string $url = null, array ...$authorizeHeaderOptions)
     {
@@ -295,9 +295,7 @@ class Hyper implements HyperInterface
     }
 
     /**
-     * Make a PATCH call.
-     *
-     * @return ResponseInterface|bool
+     * @inheritdoc
      */
     public function patch(string $url = null, $data = null, array ...$authorizeHeaderOptions)
     {
@@ -312,9 +310,7 @@ class Hyper implements HyperInterface
     }
 
     /**
-     * Make a PUT call.
-     *
-     * @return ResponseInterface|bool
+     * @inheritdoc
      */
     public function put(string $url = null, $data = null, array ...$authorizeHeaderOptions)
     {
@@ -329,9 +325,7 @@ class Hyper implements HyperInterface
     }
 
     /**
-     * Make a DELETE call.
-     *
-     * @return ResponseInterface|bool
+     * @inheritdoc
      */
     public function delete(string $url = null, $data = null, array ...$authorizeHeaderOptions)
     {
@@ -346,9 +340,7 @@ class Hyper implements HyperInterface
     }
 
     /**
-     * Make an OPTIONS call.
-     *
-     * @return ResponseInterface|bool
+     * @inheritdoc
      */
     public function options(string $url = null, array ...$authorizeHeaderOptions)
     {
@@ -362,6 +354,9 @@ class Hyper implements HyperInterface
         return $response;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function request($method, $url, $body = null, array ...$authorizeHeaderOptions): RequestInterface
     {
         $headerOptions = $this->optionsHeaderSplicer($authorizeHeaderOptions);
@@ -442,6 +437,7 @@ class Hyper implements HyperInterface
 
             $request = $request->withBody($body);
         }
+        $this->request = $request;
 
         return $request;
     }
@@ -496,7 +492,6 @@ class Hyper implements HyperInterface
         $stream = yield AsyncStream::copyResource($resource);
         \fclose($resource);
 
-        $this->request = $request;
         $this->stream = $stream;
 
         if ($option['follow_location']) {

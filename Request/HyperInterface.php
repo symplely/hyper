@@ -4,14 +4,67 @@ declare(strict_types=1);
 
 namespace Async\Request;
 
-use Psr\Http\Client\ClientInterface;
+//use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Fig\Http\Message\RequestMethodInterface;
 
 interface HyperInterface extends RequestMethodInterface
 {
+
+	/**
+	 * Controls how the `wait()` function operates.
+	 *
+	 * @param int $count - If set, initiate a competitive race between multiple HTTP tasks.
+	 * - When amount of tasks as completed, the `wait` will return with HTTP task response.
+	 * - When `0` (default), will wait for all to complete.
+	 * @param bool $exception - If `true` (default), the first raised exception is
+	 * immediately propagated to the task that `yield`ed on wait(). Other awaitables in
+	 * the aws sequence won't be abort/cancelled and will continue to run.
+	 * - If `false`, exceptions are treated the same as successful response results, 
+     * and aggregated in the response list.
+	 * @throws \LengthException - If the number of tasks less than the desired $count.
+	 */
+	public static function waitOptions(int $count = 0, bool $exception = true);
+    
+	/**
+	 * Run awaitable HTTP tasks in the httpId sequence concurrently.
+	 * If any awaitable in httpId is a coroutine, it is automatically scheduled as a Task.
+	 *
+	 * If all awaitables are completed successfully, the result is an aggregate list of returned values.
+	 * The order of result values corresponds to the order of awaitables in httpId.
+	 *
+	 * The first raised exception is immediately propagated to the task that `yield`ed `wait()`.
+	 * Other awaitables in the sequence won't be aborted/cancelled and will continue to run.
+	 *
+	 * @see https://docs.python.org/3.7/library/asyncio-task.html#asyncio.gather
+	 *
+	 * @param array $httpId
+	 * @return array
+	 */
+    public static function wait(array $httpId);
+
+	/**
+	 * Create an new HTTP request background task
+     * 
+     * @param \Generator $httpFunction
+     * @param HyperInterface $name
+	 *
+	 * @return int - request HTTP id
+	 */
+	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper);
+
+	/**
+	 * Abort/kill and remove an open request task using the `awaitable` HTTP id. 
+	 *
+	 * @param int $httpId
+	 * @return bool
+	 */
+	public static function cancel(int $httpId);
+
     /**
+     * Make a GET call.
+     *
      * @param string $url - URI for the request.
      * @param array $authorize - ['type' => "", 'username' => "", 'password' => "", 'token' => ""]
      * @param array ...$authorizeHeaderOptions
@@ -20,6 +73,8 @@ interface HyperInterface extends RequestMethodInterface
     public function get(string $url = null, array ...$authorizeHeaderOptions);
 
     /**
+     * Make a POST call.
+     *
      * @param string $url - URI for the request.
      * @param \Psr\Http\Message\StreamInterface|array|null $data
      * @param array $authorize - ['type' => "", 'username' => "", 'password' => "", 'token' => ""]
@@ -29,6 +84,8 @@ interface HyperInterface extends RequestMethodInterface
     public function post(string $url = null, $data = null, array ...$authorizeHeaderOptions);
 
     /**
+     * Make a HEAD call.
+     *
      * @param string $url - URI for the request.
      * @param array $authorize - ['type' => "", 'username' => "", 'password' => "", 'token' => ""]
      * @param array ...$authorizeHeaderOptions
@@ -37,6 +94,8 @@ interface HyperInterface extends RequestMethodInterface
     public function head(string $url = null, array ...$authorizeHeaderOptions);
 
     /**
+     * Make a PATCH call.
+     *
      * @param string $url - URI for the request.
      * @param \Psr\Http\Message\StreamInterface|array|null $data
      * @param array $authorize - ['type' => "", 'username' => "", 'password' => "", 'token' => ""]
@@ -46,6 +105,8 @@ interface HyperInterface extends RequestMethodInterface
     public function patch(string $url = null, $data = null, array ...$authorizeHeaderOptions);
 
     /**
+     * Make a PUT call.
+     *
      * @param string $url - URI for the request.
      * @param \Psr\Http\Message\StreamInterface|mixed|null $data
      * @param array $authorize - ['type' => "", 'username' => "", 'password' => "", 'token' => ""]
@@ -55,6 +116,8 @@ interface HyperInterface extends RequestMethodInterface
     public function put(string $url = null, $data = null, array ...$authorizeHeaderOptions);
 
     /**
+     * Make a DELETE call.
+     *
      * @param string $url - URI for the request.
      * @param \Psr\Http\Message\StreamInterface|array|null $data
      * @param array $authorize - ['type' => "", 'username' => "", 'password' => "", 'token' => ""]

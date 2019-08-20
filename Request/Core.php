@@ -5,7 +5,6 @@ declare(strict_types = 1);
 use Async\Request\Hyper;
 use Async\Request\HyperInterface;
 use Async\Request\BodyInterface;
-use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -143,11 +142,29 @@ if (!\function_exists('hyper')) {
 	\define('TYPE_PLAIN', BodyInterface::PLAIN_TYPE);
 	\define('TYPE_MULTI', BodyInterface::MULTI_TYPE);
 	\define('TYPE_JSON', BodyInterface::JSON_TYPE);
-	\define('TYPE_FORM', BodyInterface::FORM_TYPE);
+    \define('TYPE_FORM', BodyInterface::FORM_TYPE);
+    
+	\define('BAD_CALL', "Invalid access/call on null, no `request` or `response` instance found!");
 
     function hyper()
     {
         return true;
+    }
+
+	/**
+     * This function works similar to `gatherOptions()`.
+	 * Controls how the `fetch()` function operates.
+	 *
+	 * @param int $count - Will wait for count to complete, `0` (default) All.
+	 * @param bool $exception - If `true` (default), immediately propagated 
+     * to the task that `yield`ed on wait(). Other awaitables will continue to run.
+	 * - If `false`, exceptions are treated the same as successful response results, 
+     * and aggregated in the response list.
+	 * @throws \LengthException - If the number of HTTP tasks less than the desired $count.
+	 */
+    function fetchOptions(int $count = 0, bool $exception = true)
+    {        
+        Hyper::waitOptions($count, $exception);
     }
 
 	/**
@@ -255,9 +272,21 @@ if (!\function_exists('hyper')) {
         global $__uri__, $__uriTag__;
 
         if (empty($tag)) {
+            if ($__uri__ instanceof HyperInterface) {
+                [, $stream] = $__uri__->getHyper();
+                if ($stream instanceof StreamInterface)
+                    $stream->close();
+            }
+
             $__uri__ = null;
             unset($GLOBALS['__uri__']);
         } else {
+            if (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
+                [, $stream] = $__uriTag__[$tag]->getHyper();
+                if ($stream instanceof StreamInterface)
+                    $stream->close();
+            }
+
             $__uriTag__[$tag] = null;
             unset($GLOBALS['__uriTag__'][$tag]);
         }
@@ -432,9 +461,15 @@ if (!\function_exists('hyper')) {
         global $__uriResponse__, $__uriResponseTag__;
 
         if (empty($tag)) {
+            if ($__uriResponse__ instanceof ResponseInterface)
+                $__uriResponse__->getBody()->close();
+
             $__uriResponse__ = null;
             unset($GLOBALS['__uriResponse__']);
         } elseif (isset($__uriResponseTag__[$tag])){
+            if ($__uriResponseTag__[$tag] instanceof ResponseInterface)
+                $__uriResponseTag__[$tag]->getBody()->close();
+
             $__uriResponseTag__[$tag] = null;
             unset($GLOBALS['__uriResponseTag__'][$tag]);
         }
@@ -442,19 +477,53 @@ if (!\function_exists('hyper')) {
 
 	function response_instance($tag = null)
 	{
-        global $__uriResponse__, $__uriResponseTag__;
+        if ($tag instanceof ResponseInterface)
+            return $tag;
+
+        global $__uriResponse__, $__uriResponseTag__, $__uri__, $__uriTag__;
 
         if (empty($tag)) {
+            $request = $__uri__;
             $response = $__uriResponse__;
-        } elseif (isset($__uriResponseTag__[$tag])) {
-            $response = $__uriResponseTag__[$tag];
+        } else {
+            if (isset($__uriTag__[$tag]))
+                $request = $__uriTag__[$tag];
+            if (isset($__uriResponseTag__[$tag]))
+                $response = $__uriResponseTag__[$tag];
         }
 
         if (!isset($response) || !$response instanceof ResponseInterface) {
-            throw new \RuntimeException('Invalid access/call on null!');
+            if (!isset($request) || !$request instanceof HyperInterface)
+                \panic(\BAD_CALL);
+
+            return null; // Not ready, yield on null.
         }
 
         return $response;
+    }
+
+	function response_ok($tag = null): bool
+	{
+        if (($response = \response_instance($tag)) === null)
+            return null; // Not ready, yield on null.
+
+        return $response->isSuccessful();
+    }
+
+	function response_phrase($tag = null): string
+	{
+        if (($response = \response_instance($tag)) === null)
+            return null; // Not ready, yield on null.
+
+        return $response->getReasonPhrase();
+    }
+
+	function response_code($tag = null): int
+	{
+        if (($response = \response_instance($tag)) === null)
+            return null; // Not ready, yield on null.
+
+        return $response->getStatusCode();
     }
 
 	/**
@@ -462,23 +531,11 @@ if (!\function_exists('hyper')) {
 	 */
 	function response_body($tag = null)
 	{
-        $body = yield \response_instance($tag)->getBody()->getContents();
+        if (($response = \response_instance($tag)) === null)
+            \panic(\BAD_CALL);
+
+        $body = yield $response->getBody()->getContents();
         return $body;
-    }
-
-	function response_ok($tag = null): bool
-	{
-        return \response_instance($tag)->isSuccessful();
-    }
-
-	function response_phrase($tag = null): string
-	{
-        return \response_instance($tag)->getReasonPhrase();
-    }
-
-	function response_code($tag = null): int
-	{
-        return \response_instance($tag)->getStatusCode();
     }
 
     /**
@@ -489,9 +546,12 @@ if (!\function_exists('hyper')) {
      *
 	 * - This function needs to be prefixed with `yield`
      */
-    function response_json($tag = null, bool $assoc = null)
+    function response_json($tag = null, bool $assoc = false)
     {
-        return \json_decode(yield \response_instance($tag)->getBody()->getContents(), $assoc);
+        if (($response = \response_instance($tag)) === null)
+            \panic(\BAD_CALL);
+
+        return \json_decode(yield $response->getBody()->getContents(), $assoc);
     }
 
     /**
@@ -504,7 +564,10 @@ if (!\function_exists('hyper')) {
      */
     function response_xml($tag = null, bool $assoc = null)
     {
-        $data = \simplexml_load_string(yield \response_instance($tag)->getBody()->getContents());
+        if (($response = \response_instance($tag)) === null)
+            \panic(\BAD_CALL);
+
+        $data = \simplexml_load_string(yield $response->getBody()->getContents());
 
         return $assoc === true
             ? \json_decode(\json_encode($data), true) // cruel

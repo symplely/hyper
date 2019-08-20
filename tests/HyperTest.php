@@ -30,7 +30,6 @@ class HyperTest extends TestCase
         $this->assertEquals(Response::STATUS_OK, $response->getStatusCode());
         $this->assertEquals('{"success":true}', yield $response->getBody()->getContents());
         $this->assertTrue($response->hasHeader("Content-Type"));
-        $this->assertContains("application/json", $response->getHeaderLine("Content-Type"));
     }
 
     public function test_get_response_received()
@@ -129,7 +128,7 @@ class HyperTest extends TestCase
             ['X-Added-Header' => 'Symplely!', 'X-Http-Client' => 'Hyper'],
             ['timeout' => 5]
         );
-        $json = \json_decode(yield $response->getBody()->getContents());
+        $json = yield \response_json($response);
 
         $this->assertTrue($response->hasHeader('X-Content-Type-Options'));
         $this->assertSame('Symplely!', $json->headers->{'X-Added-Header'});
@@ -145,7 +144,7 @@ class HyperTest extends TestCase
 	{
         $url = self::TARGET_URLS.'get';
         $response = yield $this->http->sendRequest(new Request(Request::METHOD_GET, $url));
-        $json = \json_decode(yield $response->getBody()->getContents());
+        $json = yield \response_json($response);
 
         $this->assertSame($url, $json->url);
         $this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
@@ -166,7 +165,7 @@ class HyperTest extends TestCase
             ['auth_bearer' => '2323@#$@'])
         );
 
-        $json = \json_decode(yield $response->getBody()->getContents());
+        $json = yield \response_json($response);
 
         $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
         $this->assertSame(true, $json->authenticated);
