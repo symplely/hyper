@@ -97,7 +97,6 @@ class Hyper implements HyperInterface
         return new Kernel(
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
 			$httpList = $httpId;
-
 			$response = [];
 			$count = $initialCount = \count($httpId);
 			$waitSet = (self::$waitCount > 0);
@@ -186,7 +185,25 @@ class Hyper implements HyperInterface
 						}
 					}
 				}
-			}
+            }
+
+            if ($waitSet) {
+                $resultId = \array_keys($response);
+                $abortList = \array_diff($httpId, $resultId);
+                foreach($abortList as $requestId) {
+                        echo $requestId;
+                    $ntaskList = $coroutine->taskList();
+                    if (isset($ntaskList[$requestId])) {
+                        $ntaskList[$requestId]->customState('aborted');
+                        $http = $ntaskList[$requestId]->getCustomData();
+                        [, $stream] = $http->getHyper();
+                        if ($stream instanceof StreamInterface)
+                            $stream->close();
+
+                        $coroutine->cancelTask($requestId);
+                    }
+                }
+            }
 
 			self::$waitResumer = null;
 			$task->sendValue($response);

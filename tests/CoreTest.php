@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Async\Tests;
 
+use Async\Request\Response;
 use PHPUnit\Framework\TestCase;
 
 class CoreTest extends TestCase
@@ -13,7 +14,10 @@ class CoreTest extends TestCase
     private $websites = [
         'http://google.com/',
         'http://blogspot.com/',
-        'http://creativecommons.org/'
+        'http://creativecommons.org/',
+        'http://microsoft.com/',
+        'http://dell.com/',
+        'http://nytimes.com/'
     ];
 
 	protected function setUp(): void
@@ -21,35 +25,37 @@ class CoreTest extends TestCase
         \coroutine_clear();
     }
 
-    public function get_statuses($websites)
+    public function get_head($websites)
     {
-        $statuses = ['200' => 0, '400' => 0];
         foreach($websites as $website) {
-            $tasks[] = yield \await($this->get_website_status($website));
+            $tasks[] = yield \request(\http_head($website));
         }
+        $this->assertCount(6, $tasks);
 
-        $taskStatus = yield \gather($tasks);
-        $this->assertEquals(3, \count($taskStatus));
-        \array_map(function($ok) use (&$statuses) {
-            if ($ok == 200) {
+        \fetchOptions(3);
+        $responses = yield \fetch($tasks);
+
+        global $__uri__;
+        $this->assertInstanceOf(\Async\Request\HyperInterface::class, $__uri__);
+        \http_clear();
+        $this->assertNull($__uri__);
+
+        $this->assertCount(3, $responses);
+        $statuses = ['200' => 0, '400' => 0];
+        \array_map(function($instance) use (&$statuses) {
+            $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $instance);
+            $this->assertTrue(\response_ok($instance));
+            $this->assertEquals(Response::STATUS_OK, \response_code($instance));
+            $ok = \response_phrase($instance);
+            $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+            if ($ok == Response::REASON_PHRASES[200]) {
                 $statuses['200']++;
-            } elseif ($ok == 400) {
+            } elseif ($ok == Response::REASON_PHRASES[400]) {
                 $statuses['400']++;
             }
-        }, $taskStatus);
+        }, $responses);
 
         return \json_encode($statuses);
-    }
-
-    public function get_website_status($url)
-    {
-        $response = yield \http_head($url);
-        \http_clear();
-        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $response);
-        $this->assertTrue(\response_ok($response));
-        $status = \response_code($response);
-        $this->assertEquals(200, $status);
-        return yield $status;
     }
 
     public function taskRequestHead()
@@ -62,7 +68,8 @@ class CoreTest extends TestCase
         \http_clear('test');
         $response = yield \http_head();
         $this->assertFalse($response);
-        $data = yield from $this->get_statuses($this->websites);
+        \http_clear();
+        $data = yield from $this->get_head($this->websites);
         $this->expectOutputString('{"200":3,"400":0}');
         print $data;
     }

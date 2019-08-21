@@ -143,7 +143,7 @@ if (!\function_exists('hyper')) {
 	\define('TYPE_MULTI', BodyInterface::MULTI_TYPE);
 	\define('TYPE_JSON', BodyInterface::JSON_TYPE);
     \define('TYPE_FORM', BodyInterface::FORM_TYPE);
-    
+
 	\define('BAD_CALL', "Invalid access/call on null, no `request` or `response` instance found!");
 
     function hyper()
@@ -156,22 +156,22 @@ if (!\function_exists('hyper')) {
 	 * Controls how the `fetch()` function operates.
 	 *
 	 * @param int $count - Will wait for count to complete, `0` (default) All.
-	 * @param bool $exception - If `true` (default), immediately propagated 
+	 * @param bool $exception - If `true` (default), immediately propagated
      * to the task that `yield`ed on wait(). Other awaitables will continue to run.
-	 * - If `false`, exceptions are treated the same as successful response results, 
+	 * - If `false`, exceptions are treated the same as successful response results,
      * and aggregated in the response list.
 	 * @throws \LengthException - If the number of HTTP tasks less than the desired $count.
 	 */
     function fetchOptions(int $count = 0, bool $exception = true)
-    {        
+    {
         Hyper::waitOptions($count, $exception);
     }
 
 	/**
      * This function works similar to `gather()`.
-     * Take request task id's, if not covert to request object
+     * Takes an array of request HTTP task id's, if not `int` covert to request object,
+     * using identical parameters as in `Request()`
      *
-     * Parameters are identical to those of the `Request()` constructor.
      * @param ...$request either
      *
      * @param string
@@ -192,7 +192,7 @@ if (!\function_exists('hyper')) {
             if (\is_int($request)) {
                 $http[$request] = $request;
             } else {
-                $id = yield \request($request);
+                $id = \request($request);
                 $http[$id] = $id;
             }
         }
@@ -201,8 +201,8 @@ if (!\function_exists('hyper')) {
     }
 
 	/**
-     * This function works similar to `await()`.
-     * Will resolve to an ResponseInterface instance when `fetch()`
+     * This function works similar to `await()`
+     * Will resolve to an Response instance when `fetch()`
      *
      * @param ...$request either
      *
@@ -304,7 +304,7 @@ if (!\function_exists('hyper')) {
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->get($url, $options);
 
-            return \response_set($response, $tag);
+            return yield \response_set($response, $tag);
         }
 
         return false;
@@ -323,7 +323,7 @@ if (!\function_exists('hyper')) {
             $data = \array_shift($options);
             $response = yield $instance->put($url, $data, $options);
 
-            return \response_set($response, $tag);
+            return yield \response_set($response, $tag);
         }
 
         return false;
@@ -342,7 +342,7 @@ if (!\function_exists('hyper')) {
             $data = \array_shift($options);
             $response = yield $instance->delete($url, $data, $options);
 
-            return \response_set($response, $tag);
+            return yield \response_set($response, $tag);
         }
 
         return false;
@@ -361,7 +361,7 @@ if (!\function_exists('hyper')) {
             $data = \array_shift($options);
             $response = yield $instance->post($url, $data, $options);
 
-            return \response_set($response, $tag);
+            return yield \response_set($response, $tag);
         }
 
         return false;
@@ -380,7 +380,7 @@ if (!\function_exists('hyper')) {
             $data = \array_shift($options);
             $response = yield $instance->patch($url, $data, $options);
 
-            return \response_set($response, $tag);
+            return yield \response_set($response, $tag);
         }
 
         return false;
@@ -398,7 +398,7 @@ if (!\function_exists('hyper')) {
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->options($url, $options);
 
-            return \response_set($response, $tag);
+            return yield \response_set($response, $tag);
         }
 
         return false;
@@ -416,7 +416,7 @@ if (!\function_exists('hyper')) {
         if (isset($instance) && $instance instanceof HyperInterface) {
             $response = yield $instance->head($url, $options);
 
-            return \response_set($response, $tag);
+            return yield \response_set($response, $tag);
         }
 
         return false;
@@ -502,12 +502,17 @@ if (!\function_exists('hyper')) {
         return $response;
     }
 
+    /**
+     * Response is a successful one.
+     *
+     * @return boolean
+     */
 	function response_ok($tag = null): bool
 	{
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
 
-        return $response->isSuccessful();
+        return ($response->getStatusCode() < 400);
     }
 
 	function response_phrase($tag = null): string
