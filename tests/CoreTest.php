@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Async\Tests;
 
 use Async\Request\Response;
+use Async\Request\Request;
 use PHPUnit\Framework\TestCase;
 
 class CoreTest extends TestCase
 {
     const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net";
-    //const TARGET_URL = "https://httpbin.org/";
-    private $websites = [
+    const TARGET_URLS = "https://httpbin.org/";
+
+    protected $websites = [
         'http://google.com/',
         'http://blogspot.com/',
         'http://creativecommons.org/',
@@ -25,7 +27,7 @@ class CoreTest extends TestCase
         \coroutine_clear();
     }
 
-    public function get_head($websites)
+    public function task_head($websites)
     {
         foreach($websites as $website) {
             $tasks[] = yield \request(\http_head($website));
@@ -69,7 +71,7 @@ class CoreTest extends TestCase
         $response = yield \http_head();
         $this->assertFalse($response);
         \http_clear();
-        $data = yield from $this->get_head($this->websites);
+        $data = yield from $this->task_head($this->websites);
         $this->expectOutputString('{"200":3,"400":0}');
         print $data;
     }
@@ -77,5 +79,51 @@ class CoreTest extends TestCase
     public function testRequestHead()
     {
         \coroutine_run($this->taskRequestHead());
+    }
+
+    public function taskRequestGet()
+    {
+        $request = new Request(Request::METHOD_GET, self::TARGET_URL);
+        $pipedream = yield \request($request);
+        $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS.'get']);
+        //$creativeCommons = yield \request(\http_get('http://creativecommons.org/'));
+
+        $responses = yield \fetch($pipedream, $httpBin);
+        //\http_clear();
+        $this->assertCount(2, $responses);
+
+        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$pipedream]);
+        $urlInstance = $responses[$pipedream];
+        $this->assertTrue(\response_ok($urlInstance));
+        $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
+        $ok = \response_phrase($urlInstance);
+        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+        $this->assertNotNull(yield \response_body($urlInstance));
+
+        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$httpBin]);
+        $urlsInstance = $responses[$httpBin];
+        $this->assertTrue(\response_ok($urlsInstance));
+        $this->assertEquals(Response::STATUS_OK, \response_code($urlsInstance));
+        $ok = \response_phrase($urlsInstance);
+        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+        $this->assertEquals('{"success":true}', yield \response_body($urlInstance));
+
+       // $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$creativeCommons]);
+       // $getInstance = $responses[$creativeCommons];
+       // $this->assertTrue(\response_ok($getInstance));
+      //  $this->assertEquals(Response::STATUS_OK, \response_code($getInstance));
+      //  $ok = \response_phrase($getInstance);
+      //  $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+     //   $this->assertNotNull(yield \response_body($getInstance));
+    }
+
+    public function taskRequestGetUrl()
+    {
+        yield $this->taskRequestGet($this->websites);
+    }
+
+    public function testRequestGet()
+    {
+        \coroutine_run($this->taskRequestGetUrl());
     }
 }

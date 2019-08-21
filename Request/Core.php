@@ -9,7 +9,6 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 if(!\function_exists('mime_content_type')) {
-
     function mime_content_type($filename)
     {
         $mime_types = array(
@@ -160,11 +159,13 @@ if (!\function_exists('hyper')) {
      * to the task that `yield`ed on wait(). Other awaitables will continue to run.
 	 * - If `false`, exceptions are treated the same as successful response results,
      * and aggregated in the response list.
+     * @param bool $clearAborted - If `true` (default), close/cancel/abort remaining result/responses
+     *
 	 * @throws \LengthException - If the number of HTTP tasks less than the desired $count.
 	 */
-    function fetchOptions(int $count = 0, bool $exception = true)
+    function fetchOptions(int $count = 0, bool $exception = true, bool $clearAborted = true)
     {
-        Hyper::waitOptions($count, $exception);
+        Hyper::waitOptions($count, $exception, $clearAborted);
     }
 
 	/**
@@ -236,8 +237,7 @@ if (!\function_exists('hyper')) {
             $method = \array_shift($isRequest);
             $url = \array_shift($isRequest);
             $data = \array_shift($isRequest);
-            $request = $http->request($method, $url, $data, $isRequest);
-            $httpFunction = $http->sendRequest($request);
+            $httpFunction = $http->sendRequest($http->request($method, $url, $data, $isRequest));
         }
 
         return Hyper::awaitable($httpFunction, $http);

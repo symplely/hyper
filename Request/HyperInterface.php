@@ -11,6 +11,13 @@ use Fig\Http\Message\RequestMethodInterface;
 
 interface HyperInterface extends RequestMethodInterface
 {
+    /**
+     * Returns the created `Request` and `Stream` instances.
+     * This is mainly used for memory management and to cancel/abort failed requests.
+     *
+     * @return array
+     */
+    public function getHyper(): array;
 
 	/**
 	 * Controls how the `wait()` function operates.
@@ -21,12 +28,14 @@ interface HyperInterface extends RequestMethodInterface
 	 * @param bool $exception - If `true` (default), the first raised exception is
 	 * immediately propagated to the task that `yield`ed on wait(). Other awaitables in
 	 * the aws sequence won't be abort/cancelled and will continue to run.
-	 * - If `false`, exceptions are treated the same as successful response results, 
+	 * - If `false`, exceptions are treated the same as successful response results,
      * and aggregated in the response list.
+     * @param bool $clearAborted - If `true` (default), close/cancel/abort remaining result/responses
+     *
 	 * @throws \LengthException - If the number of tasks less than the desired $count.
 	 */
-	public static function waitOptions(int $count = 0, bool $exception = true);
-    
+	public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true);
+
 	/**
 	 * Run awaitable HTTP tasks in the httpId sequence concurrently.
 	 * If any awaitable in httpId is a coroutine, it is automatically scheduled as a Task.
@@ -46,7 +55,7 @@ interface HyperInterface extends RequestMethodInterface
 
 	/**
 	 * Create an new HTTP request background task
-     * 
+     *
      * @param \Generator $httpFunction
      * @param HyperInterface $name
 	 *
@@ -55,7 +64,7 @@ interface HyperInterface extends RequestMethodInterface
 	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper);
 
 	/**
-	 * Abort/kill and remove an open request task using the `awaitable` HTTP id. 
+	 * Abort/kill and remove an open request task using the `awaitable` HTTP id.
 	 *
 	 * @param int $httpId
 	 * @return bool

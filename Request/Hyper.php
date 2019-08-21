@@ -52,7 +52,7 @@ class Hyper implements HyperInterface
         'request_fulluri' => false,
         'max_redirects' => 10,
         'ignore_errors' => true,
-        'timeout' => 30,
+        'timeout' => 10,
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 
@@ -69,8 +69,12 @@ class Hyper implements HyperInterface
     protected static $waitResumer = null;
     protected static $waitCount = 0;
     protected static $waitShouldError = true;
+    protected static $waitAbortedCleared = true;
 
-	public function getHyper()
+    /**
+     * @inheritdoc
+     */
+	public function getHyper(): array
 	{
         $request = $this->request;
         $stream = $this->stream;
@@ -83,10 +87,11 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-	public static function waitOptions(int $count = 0, bool $exception = true)
+	public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true)
 	{
 		self::$waitCount = $count;
 		self::$waitShouldError = $exception;
+		self::$waitAbortedCleared = $clearAborted;
     }
 
     /**
@@ -96,7 +101,7 @@ class Hyper implements HyperInterface
     {
         return new Kernel(
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
-			$httpList = $httpId;
+            $httpList = $httpId;
 			$response = [];
 			$count = $initialCount = \count($httpId);
 			$waitSet = (self::$waitCount > 0);
@@ -136,6 +141,7 @@ class Hyper implements HyperInterface
             }
 
             $waitShouldError = self::$waitShouldError;
+            $waitAbortedCleared = self::$waitAbortedCleared;
             self::waitOptions();
 			while ($count > 0) {
 				foreach($httpList as $id) {
@@ -144,24 +150,19 @@ class Hyper implements HyperInterface
                         if ($tasks->isCustomState('beginning')
                             && ($tasks->pending() || $tasks->rescheduled())
                         ) {
-                            $tasks->customState();
-							$coroutine->runCoroutines();
+                            $tasks->customState('started');
+							$tasks->runCoroutines();
 						} elseif ($tasks->completed()) {
                             $tasks->customState('ended');
                             $tasks->getCustomData()->getHyper();
-							$response[$id] = $tasks->result();
+                            $response[$id] = $tasks->result();
 							$count--;
                             unset($taskList[$id]);
 							self::updateList($coroutine, $id);
 						} elseif ($tasks->erred()) {
-                            $http = $tasks->getCustomData();
-                            [, $stream] = $http->getHyper();
-                            if ($stream instanceof StreamInterface)
-                                $stream->close();
-
+							self::updateList($coroutine, $id, $taskList, true, false, true);
 							$count--;
 							unset($taskList[$id]);
-							self::updateList($coroutine, $id);
 							$exception = $tasks->exception();
                             if ($waitShouldError) {
                                 self::$waitResumer = [$httpList, $count, $response, $taskList];
@@ -169,14 +170,9 @@ class Hyper implements HyperInterface
                                 $coroutine->schedule($tasks);
                             }
 						} elseif ($tasks->cancelled()) {
-                            $http = $tasks->getCustomData();
-                            [, $stream] = $http->getHyper();
-                            if ($stream instanceof StreamInterface)
-                                $stream->close();
-
+							self::updateList($coroutine, $id, $taskList, true, false, true);
 							$count--;
 							unset($taskList[$id]);
-							self::updateList($coroutine, $id);
                             if ($waitShouldError) {
                                 self::$waitResumer = [$httpList, $count, $response, $taskList];
                                 $task->setException(new CancelledError());
@@ -187,20 +183,16 @@ class Hyper implements HyperInterface
 				}
             }
 
-            if ($waitSet) {
+            if ($waitSet && $waitAbortedCleared) {
                 $resultId = \array_keys($response);
                 $abortList = \array_diff($httpId, $resultId);
+                $currentList = $coroutine->taskList();
+                $finishedList = $coroutine->completedList();
                 foreach($abortList as $requestId) {
-                        echo $requestId;
-                    $ntaskList = $coroutine->taskList();
-                    if (isset($ntaskList[$requestId])) {
-                        $ntaskList[$requestId]->customState('aborted');
-                        $http = $ntaskList[$requestId]->getCustomData();
-                        [, $stream] = $http->getHyper();
-                        if ($stream instanceof StreamInterface)
-                            $stream->close();
-
-                        $coroutine->cancelTask($requestId);
+                    if (isset($finishedList[$requestId])) {
+						self::updateList($coroutine, $requestId, $finishedList, true);
+                    } elseif (isset($currentList[$requestId])) {
+						self::updateList($coroutine, $requestId, $currentList, true, true);
                     }
                 }
             }
@@ -211,14 +203,32 @@ class Hyper implements HyperInterface
 		});
     }
 
-	protected static function updateList(Coroutine $coroutine, int $id, array $completeList = [])
+    protected static function updateList(Coroutine $coroutine,
+        int $id,
+        array $list = [],
+        bool $abort = false,
+        bool $cancel = false,
+        bool $forceUpdate = false)
 	{
-		if (empty($completeList)) {
-			$completeList = $coroutine->completedList();
-		}
+        if ($abort && !empty($list)) {
+            $list[$id]->customState('aborted');
+            $http = $list[$id]->getCustomData();
+            [, $stream] = $http->getHyper();
+            if ($stream instanceof StreamInterface) {
+                $stream->close();
+            }
+        }
 
-		unset($completeList[$id]);
-		$coroutine->updateCompleted($completeList);
+        if ($cancel) {
+            $coroutine->cancelTask($id);
+        } else {
+            if (empty($list) || $forceUpdate) {
+                $list = $coroutine->completedList();
+            }
+
+            unset($list[$id]);
+            $coroutine->updateCompleted($list);
+        }
     }
 
     /**
@@ -506,7 +516,7 @@ class Hyper implements HyperInterface
         }
 
         $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
-        $stream = yield AsyncStream::copyResource($resource);
+        $stream = yield from AsyncStream::copyResource($resource);
         \fclose($resource);
 
         $this->stream = $stream;
