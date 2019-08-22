@@ -185,11 +185,11 @@ if (!\function_exists('hyper')) {
      *
 	 * - This function needs to be prefixed with `yield`
 	 */
-	function fetch(...$request)
+	function fetch(...$requests)
 	{
         $http = [];
-        $httpList = \is_array($request[0]) ? $request[0] : $request;
-        foreach($httpList as $id => $request) {
+        $httpList = \is_array($requests[0]) ? $requests[0] : $requests;
+        foreach($httpList as $request) {
             if (\is_int($request)) {
                 $http[$request] = $request;
             } else {
@@ -219,20 +219,28 @@ if (!\function_exists('hyper')) {
 	 */
 	function request()
 	{
-		$args = \func_get_args();
+        $args = \func_get_args();
         $isRequest = \array_shift($args);
         if (\is_string($isRequest)) {
             $tag = $isRequest;
-            $isRequest = $args;
+            $isRequest = \array_shift($args);
+            if (!empty($args))
+                 $isRequest = \array_shift($args);
         } else {
-            $tag = null;
+            $tag = 'null';
         }
 
         $http = \http_instance($tag);
         if ($isRequest instanceof RequestInterface) {
             $httpFunction = \awaitAble([$http,'sendRequest'], $isRequest);
         } elseif ($isRequest instanceof \Generator) {
+            global $__uri__, $__uriTag__;
             $httpFunction = $isRequest;
+            if (($tag !== 'null') && isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
+                $http = $__uriTag__[$tag];
+            } elseif (($tag === 'null') && isset($__uri__) && $__uri__ instanceof HyperInterface) {
+                $http = $__uri__;
+            }
         } elseif (\is_array($isRequest)) {
             $method = \array_shift($isRequest);
             $url = \array_shift($isRequest);
@@ -256,7 +264,12 @@ if (!\function_exists('hyper')) {
 
 	function http_instance(string $tag = null): HyperInterface
 	{
-		global $__uri__, $__uriTag__;
+        global $__uri__, $__uriTag__;
+
+        if ($tag === 'null') {
+            $__uri__ = new Hyper;
+            return $__uri__;
+        }
 
         if (empty($tag)) {
             if (!$__uri__ instanceof HyperInterface)
@@ -268,11 +281,15 @@ if (!\function_exists('hyper')) {
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
 	}
 
-	function http_clear(string $tag = null)
+	function http_clear($tag = null)
 	{
         global $__uri__, $__uriTag__;
 
-        if (empty($tag)) {
+        if ($tag instanceof HyperInterface) {
+            [, $stream] = $tag->getHyper();
+            if ($stream instanceof StreamInterface)
+                $stream->close();
+        } elseif (empty($tag)) {
             if ($__uri__ instanceof HyperInterface) {
                 [, $stream] = $__uri__->getHyper();
                 if ($stream instanceof StreamInterface)
@@ -301,9 +318,9 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
-            $response = yield $instance->get($url, $options);
+            $response = yield $instance->get($url, $option);
 
             return yield \response_set($response, $tag);
         }
@@ -319,10 +336,10 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
-            $data = \array_shift($options);
-            $response = yield $instance->put($url, $data, $options);
+            $data = \array_shift($option);
+            $response = yield $instance->put($url, $data, $option);
 
             return yield \response_set($response, $tag);
         }
@@ -338,10 +355,10 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($options);
-            $response = yield $instance->delete($url, $data, $options);
+            $response = yield $instance->delete($url, $data, $option);
 
             return yield \response_set($response, $tag);
         }
@@ -357,10 +374,10 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
-            $data = \array_shift($options);
-            $response = yield $instance->post($url, $data, $options);
+            $data = \array_shift($option);
+            $response = yield $instance->post($url, $data, $option);
 
             return yield \response_set($response, $tag);
         }
@@ -376,10 +393,10 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
-            $data = \array_shift($options);
-            $response = yield $instance->patch($url, $data, $options);
+            $data = \array_shift($option);
+            $response = yield $instance->patch($url, $data, $option);
 
             return yield \response_set($response, $tag);
         }
@@ -395,9 +412,9 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
-            $response = yield $instance->options($url, $options);
+            $response = yield $instance->options($url, $option);
 
             return yield \response_set($response, $tag);
         }
@@ -413,9 +430,9 @@ if (!\function_exists('hyper')) {
 		if (empty($tagUri))
             return false;
 
-        [$tag, $url, $instance, $options] = \createTagAndSplit($tagUri, $options);
+        [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $options);
         if (isset($instance) && $instance instanceof HyperInterface) {
-            $response = yield $instance->head($url, $options);
+            $response = yield $instance->head($url, $option);
 
             return yield \response_set($response, $tag);
         }
@@ -461,7 +478,9 @@ if (!\function_exists('hyper')) {
 	{
         global $__uriResponse__, $__uriResponseTag__;
 
-        if (empty($tag)) {
+        if ($tag instanceof ResponseInterface) {
+            $tag->getBody()->close();
+        } elseif (empty($tag)) {
             if ($__uriResponse__ instanceof ResponseInterface)
                 $__uriResponse__->getBody()->close();
 
@@ -508,7 +527,7 @@ if (!\function_exists('hyper')) {
      *
      * @return boolean
      */
-	function response_ok($tag = null): bool
+	function response_ok($tag = null): ?bool
 	{
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
@@ -516,7 +535,7 @@ if (!\function_exists('hyper')) {
         return ($response->getStatusCode() < 400);
     }
 
-	function response_phrase($tag = null): string
+	function response_phrase($tag = null): ?string
 	{
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
@@ -524,7 +543,7 @@ if (!\function_exists('hyper')) {
         return $response->getReasonPhrase();
     }
 
-	function response_code($tag = null): int
+	function response_code($tag = null): ?int
 	{
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.

@@ -38,6 +38,7 @@ class Hyper implements HyperInterface
         'headers' => [
             'Accept' => '*/*',
             'Accept-Charset' => 'utf-8',
+            'Accept-Language' => 'en-US,en;q=0.9',
             'X-Powered-By' => 'PHP/' . \PHP_VERSION,
             'Connection' => 'close',
         ]
@@ -259,9 +260,11 @@ class Hyper implements HyperInterface
 				if (isset($taskList[$httpId])) {
                     $taskList[$httpId]->customState('aborted');
                     $http = $taskList[$httpId]->getCustomData();
-                    [, $stream] = $http->getHyper();
-                    if ($stream instanceof StreamInterface)
-                        $stream->close();
+                    if ($http instanceof HyperInterface) {
+                        [, $stream] = $http->getHyper();
+                        if ($stream instanceof StreamInterface)
+                            $stream->close();
+                    }
 
 					$task->sendValue($coroutine->cancelTask($httpId));
 					$coroutine->schedule($task);

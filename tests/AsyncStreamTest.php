@@ -198,7 +198,8 @@ class AsyncStreamTest extends TestCase
         \coroutine_run($this->taskStreamReadingWithZeroLength());
     }
 
-	public function taskStreamReadingWithNegativeLength(){
+    public function taskStreamReadingWithNegativeLength()
+    {
 		$this->expectException(\RuntimeException::class);
 		$this->expectExceptionMessage('Length parameter cannot be negative');
 

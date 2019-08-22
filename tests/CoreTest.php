@@ -39,8 +39,6 @@ class CoreTest extends TestCase
 
         global $__uri__;
         $this->assertInstanceOf(\Async\Request\HyperInterface::class, $__uri__);
-        \http_clear();
-        $this->assertNull($__uri__);
 
         $this->assertCount(3, $responses);
         $statuses = ['200' => 0, '400' => 0];
@@ -56,6 +54,9 @@ class CoreTest extends TestCase
                 $statuses['400']++;
             }
         }, $responses);
+
+        \http_clear();
+        $this->assertNull($__uri__);
 
         return \json_encode($statuses);
     }
@@ -85,8 +86,7 @@ class CoreTest extends TestCase
     {
         $pipedream = yield \request(new Request(Request::METHOD_GET, self::TARGET_URL));
         $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS.'get']);
-        $times = yield \request(\http_get('https://nytimes.com'));
-        //\http_clear();
+        $times = yield \request(\http_get('http://creativecommons.org/'));
 
         $responses = yield \fetch($pipedream, $httpBin, $times);
         $this->assertCount(3, $responses);
@@ -98,6 +98,7 @@ class CoreTest extends TestCase
         $ok = \response_phrase($urlInstance);
         $this->assertEquals(Response::REASON_PHRASES[200], $ok);
         $this->assertNotNull(yield \response_body($urlInstance));
+        \response_clear($urlInstance);
 
         $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$httpBin]);
         $urlsInstance = $responses[$httpBin];
@@ -106,6 +107,7 @@ class CoreTest extends TestCase
         $ok = \response_phrase($urlsInstance);
         $this->assertEquals(Response::REASON_PHRASES[200], $ok);
         $this->assertEquals('{"success":true}', yield \response_body($urlInstance));
+        \response_clear($urlsInstance);
 
         $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$times]);
         $getInstance = $responses[$times];
@@ -114,6 +116,7 @@ class CoreTest extends TestCase
         $ok = \response_phrase($getInstance);
         $this->assertEquals(Response::REASON_PHRASES[200], $ok);
         $this->assertNotNull(yield \response_body($getInstance));
+        \http_clear();
     }
 
     public function testRequestGet()
@@ -125,7 +128,6 @@ class CoreTest extends TestCase
     {
         $pipedream = yield \request(\http_post(self::TARGET_URL, ["foo" => "bar"]));
         $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
-        //\http_clear();
 
         $responses = yield \fetch($pipedream, $httpBin);
         $this->assertCount(2, $responses);
@@ -137,6 +139,7 @@ class CoreTest extends TestCase
         $ok = \response_phrase($urlInstance);
         $this->assertEquals(Response::REASON_PHRASES[200], $ok);
         $this->assertNotNull(yield \response_body($urlInstance));
+        \response_clear($urlInstance);
 
         $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$httpBin]);
         $urlsInstance = $responses[$httpBin];
@@ -145,10 +148,43 @@ class CoreTest extends TestCase
         $ok = \response_phrase($urlsInstance);
         $this->assertEquals(Response::REASON_PHRASES[200], $ok);
         $this->assertEquals('{"success":true}', yield \response_body($urlInstance));
+        \response_clear($urlsInstance);
     }
 
     public function testRequestPost()
     {
         \coroutine_run($this->taskRequestPost());
+    }
+
+    public function taskRequestPut()
+    {
+        $data['name'] = 'github';
+        $data['key'] = 'XT3837';
+        yield \request('bin', [Request::METHOD_PUT, self::TARGET_URLS.'put', $data]);
+        yield \request('pipe', \http_put('pipe', self::TARGET_URL, $data));
+
+        while (true) {
+            if (\response_ok('pipe') == null) {
+                yield;
+            } else {
+                break;
+            }
+        }
+
+        $this->assertEquals(Response::STATUS_OK, \response_code('pipe'));
+        $ok = \response_phrase('pipe');
+        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+        $this->assertEquals('{"success":true}', yield \response_body('pipe'));
+        \response_clear('pipe');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('Invalid access/call on null, no `request` or `response` instance found!');
+        $this->assertEquals('{"success":true}', yield \response_body('bin'));
+        \http_clear('bin');
+    }
+
+    public function testRequestPut()
+    {
+        \coroutine_run($this->taskRequestPut());
     }
 }
