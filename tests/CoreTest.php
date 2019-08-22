@@ -83,14 +83,13 @@ class CoreTest extends TestCase
 
     public function taskRequestGet()
     {
-        $request = new Request(Request::METHOD_GET, self::TARGET_URL);
-        $pipedream = yield \request($request);
+        $pipedream = yield \request(new Request(Request::METHOD_GET, self::TARGET_URL));
         $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS.'get']);
-        //$creativeCommons = yield \request(\http_get('http://creativecommons.org/'));
-
-        $responses = yield \fetch($pipedream, $httpBin);
+        $times = yield \request(\http_get('https://nytimes.com'));
         //\http_clear();
-        $this->assertCount(2, $responses);
+
+        $responses = yield \fetch($pipedream, $httpBin, $times);
+        $this->assertCount(3, $responses);
 
         $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$pipedream]);
         $urlInstance = $responses[$pipedream];
@@ -108,22 +107,48 @@ class CoreTest extends TestCase
         $this->assertEquals(Response::REASON_PHRASES[200], $ok);
         $this->assertEquals('{"success":true}', yield \response_body($urlInstance));
 
-       // $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$creativeCommons]);
-       // $getInstance = $responses[$creativeCommons];
-       // $this->assertTrue(\response_ok($getInstance));
-      //  $this->assertEquals(Response::STATUS_OK, \response_code($getInstance));
-      //  $ok = \response_phrase($getInstance);
-      //  $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-     //   $this->assertNotNull(yield \response_body($getInstance));
-    }
-
-    public function taskRequestGetUrl()
-    {
-        yield $this->taskRequestGet($this->websites);
+        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$times]);
+        $getInstance = $responses[$times];
+        $this->assertTrue(\response_ok($getInstance));
+        $this->assertEquals(Response::STATUS_OK, \response_code($getInstance));
+        $ok = \response_phrase($getInstance);
+        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+        $this->assertNotNull(yield \response_body($getInstance));
     }
 
     public function testRequestGet()
     {
-        \coroutine_run($this->taskRequestGetUrl());
+        \coroutine_run($this->taskRequestGet());
+    }
+
+    public function taskRequestPost()
+    {
+        $pipedream = yield \request(\http_post(self::TARGET_URL, ["foo" => "bar"]));
+        $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
+        //\http_clear();
+
+        $responses = yield \fetch($pipedream, $httpBin);
+        $this->assertCount(2, $responses);
+
+        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$pipedream]);
+        $urlInstance = $responses[$pipedream];
+        $this->assertTrue(\response_ok($urlInstance));
+        $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
+        $ok = \response_phrase($urlInstance);
+        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+        $this->assertNotNull(yield \response_body($urlInstance));
+
+        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$httpBin]);
+        $urlsInstance = $responses[$httpBin];
+        $this->assertTrue(\response_ok($urlsInstance));
+        $this->assertEquals(Response::STATUS_OK, \response_code($urlsInstance));
+        $ok = \response_phrase($urlsInstance);
+        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+        $this->assertEquals('{"success":true}', yield \response_body($urlInstance));
+    }
+
+    public function testRequestPost()
+    {
+        \coroutine_run($this->taskRequestPost());
     }
 }

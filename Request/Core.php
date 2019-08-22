@@ -230,14 +230,15 @@ if (!\function_exists('hyper')) {
 
         $http = \http_instance($tag);
         if ($isRequest instanceof RequestInterface) {
-            $httpFunction = $http->sendRequest($isRequest);
+            $httpFunction = \awaitAble([$http,'sendRequest'], $isRequest);
         } elseif ($isRequest instanceof \Generator) {
             $httpFunction = $isRequest;
         } elseif (\is_array($isRequest)) {
             $method = \array_shift($isRequest);
             $url = \array_shift($isRequest);
             $data = \array_shift($isRequest);
-            $httpFunction = $http->sendRequest($http->request($method, $url, $data, $isRequest));
+            $request = $http->request($method, $url, $data, $isRequest);
+            $httpFunction = \awaitAble([$http,'sendRequest'], $request);
         }
 
         return Hyper::awaitable($httpFunction, $http);

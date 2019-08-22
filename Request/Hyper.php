@@ -151,7 +151,7 @@ class Hyper implements HyperInterface
                             && ($tasks->pending() || $tasks->rescheduled())
                         ) {
                             $tasks->customState('started');
-							$tasks->runCoroutines();
+							$coroutine->runCoroutines();
 						} elseif ($tasks->completed()) {
                             $tasks->customState('ended');
                             $tasks->getCustomData()->getHyper();
@@ -296,7 +296,7 @@ class Hyper implements HyperInterface
             return false;
 
         $response = yield $this->sendRequest(
-            $this->request(Request::METHOD_POST, $url, $data, ...$authorizeHeaderOptions)
+            $this->request(Request::METHOD_POST, $url, $data, $authorizeHeaderOptions)
         );
 
         return $response;
@@ -502,7 +502,12 @@ class Hyper implements HyperInterface
                 $context['http']['content'] = yield $request->getBody()->__toString();
         }
 
-        $resource = @\fopen($request->getUri()->__toString(), 'rb', false, \stream_context_create($context));
+        $ctx = \stream_context_create($context);
+        if ($request->debugging()) {
+            \stream_context_set_params($ctx, array('notification' => [$request, 'debug']));
+        }
+
+        $resource = @\fopen($request->getUri()->__toString(), 'rb', false, $ctx);
 
         if (!\is_resource($resource)) {
             $error = \error_get_last()['message'];
@@ -515,11 +520,10 @@ class Hyper implements HyperInterface
             throw $e;
         }
 
-        $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
-        $stream = yield from AsyncStream::copyResource($resource);
-        \fclose($resource);
-
+        yield;
+        $stream = AsyncStream::createFromResource($resource);
         $this->stream = $stream;
+        $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
 
         if ($option['follow_location']) {
             $headers = $this->filterResponseHeaders($headers);
