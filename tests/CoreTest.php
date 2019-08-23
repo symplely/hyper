@@ -106,21 +106,21 @@ class CoreTest extends TestCase
 
     public function taskRequestPost()
     {
+        $httpBin = yield \request(\http_post(self::TARGET_URLS.'post', ["foo" => "bar"]));
         $pipedream = yield \request(\http_post(self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
-        $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
 
         $responses = yield \fetch($pipedream, $httpBin);
         $this->assertCount(2, $responses);
 
-        \array_map(function($urlInstance) {
+        foreach($responses as $key => $urlInstance) {
+            $this->assertTrue(\is_type($key, 'int'));
             $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
             $this->assertTrue(\response_ok($urlInstance));
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
             $ok = \response_phrase($urlInstance);
             $this->assertEquals(Response::REASON_PHRASES[200], $ok);
             $this->assertNotNull(yield \response_body($urlInstance));
-            \response_clear($urlInstance);
-        }, $responses);
+        };
     }
 
     public function testRequestPost()

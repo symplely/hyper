@@ -67,6 +67,11 @@ class Hyper implements HyperInterface
      */
     protected $request = null;
 
+    /**
+     * @var ResponseInterface
+     */
+    protected $response = null;
+
     protected static $waitResumer = null;
     protected static $waitCount = 0;
     protected static $waitShouldError = true;
@@ -79,10 +84,11 @@ class Hyper implements HyperInterface
 	{
         $request = $this->request;
         $stream = $this->stream;
+        $response = $this->response;
         $this->stream = null;
         $this->request = null;
 
-        return [$request, $stream];
+        return [$request, $stream, $response];
     }
 
     /**
@@ -283,11 +289,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->sendRequest(
+        return $this->sendRequest(
             $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions)
         );
-
-        return $response;
     }
 
     /**
@@ -298,11 +302,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->sendRequest(
+        return $this->sendRequest(
             $this->request(Request::METHOD_POST, $url, $data, $authorizeHeaderOptions)
         );
-
-        return $response;
     }
 
     /**
@@ -332,11 +334,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->sendRequest(
+        return $this->sendRequest(
             $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions)
         );
-
-        return $response;
     }
 
     /**
@@ -347,11 +347,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->sendRequest(
+        return $this->sendRequest(
             $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions)
         );
-
-        return $response;
     }
 
     /**
@@ -362,11 +360,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->sendRequest(
+        return $this->sendRequest(
             $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions)
         );
-
-        return $response;
     }
 
     /**
@@ -377,11 +373,9 @@ class Hyper implements HyperInterface
         if (empty($url))
             return false;
 
-        $response = yield $this->sendRequest(
+        return $this->sendRequest(
             $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions)
         );
-
-        return $response;
     }
 
     /**
@@ -499,10 +493,7 @@ class Hyper implements HyperInterface
         ];
 
         if ($request->getBody()->getSize()) {
-            if ($request->getBody() instanceof BodyInterface)
-                $context['http']['content'] = $request->getBody()->__toString();
-            else
-                $context['http']['content'] = yield $request->getBody()->__toString();
+            $context['http']['content'] = $request->getBody()->__toString();
         }
 
         $ctx = \stream_context_create($context);
@@ -522,11 +513,11 @@ class Hyper implements HyperInterface
 
             throw $e;
         }
+        $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
 
         yield;
         $stream = AsyncStream::createFromResource($resource);
         $this->stream = $stream;
-        $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
 
         if ($option['follow_location']) {
             $headers = $this->filterResponseHeaders($headers);
@@ -550,6 +541,8 @@ class Hyper implements HyperInterface
         foreach ($this->buildResponseHeaders($headers) as $key => $value) {
             $response = $response->withHeader($key, $value);
         }
+
+        $this->response = $response;
 
         return $response;
     }
