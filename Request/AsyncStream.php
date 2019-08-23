@@ -278,7 +278,6 @@ class AsyncStream implements StreamInterface
      */
     public function getContents()
     {
-        yield;
         $handle = $this->getResource();
 
         if ($this->readable && ($handle !== null)) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Async\Tests;
 
+use Async\Request\Body;
 use Async\Request\Response;
 use Async\Request\Request;
 use PHPUnit\Framework\TestCase;
@@ -25,6 +26,8 @@ class CoreTest extends TestCase
 	protected function setUp(): void
     {
         \coroutine_clear();
+        \http_clear();
+        \response_clear();
     }
 
     public function task_head($websites)
@@ -66,12 +69,6 @@ class CoreTest extends TestCase
         $int = yield \request(\http_head('test', self::TARGET_URL));
         $this->assertEquals('int', \is_type($int));
         yield \request_abort($int);
-        $response = yield \http_head('test');
-        $this->assertFalse($response);
-        \http_clear('test');
-        $response = yield \http_head();
-        $this->assertFalse($response);
-        \http_clear();
         $data = yield from $this->task_head($this->websites);
         $this->expectOutputString('{"200":3,"400":0}');
         print $data;
@@ -86,37 +83,20 @@ class CoreTest extends TestCase
     {
         $pipedream = yield \request(new Request(Request::METHOD_GET, self::TARGET_URL));
         $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS.'get']);
-        $times = yield \request(\http_get('http://creativecommons.org/'));
+        $times = yield \request(\http_get('http://nytimes.com'));
 
         $responses = yield \fetch($pipedream, $httpBin, $times);
         $this->assertCount(3, $responses);
 
-        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$pipedream]);
-        $urlInstance = $responses[$pipedream];
-        $this->assertTrue(\response_ok($urlInstance));
-        $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
-        $ok = \response_phrase($urlInstance);
-        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-        $this->assertNotNull(yield \response_body($urlInstance));
-        \response_clear($urlInstance);
-
-        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$httpBin]);
-        $urlsInstance = $responses[$httpBin];
-        $this->assertTrue(\response_ok($urlsInstance));
-        $this->assertEquals(Response::STATUS_OK, \response_code($urlsInstance));
-        $ok = \response_phrase($urlsInstance);
-        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-        $this->assertEquals('{"success":true}', yield \response_body($urlInstance));
-        \response_clear($urlsInstance);
-
-        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$times]);
-        $getInstance = $responses[$times];
-        $this->assertTrue(\response_ok($getInstance));
-        $this->assertEquals(Response::STATUS_OK, \response_code($getInstance));
-        $ok = \response_phrase($getInstance);
-        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-        $this->assertNotNull(yield \response_body($getInstance));
-        \http_clear();
+        \array_map(function($urlInstance) {
+            $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
+            $this->assertTrue(\response_ok($urlInstance));
+            $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
+            $ok = \response_phrase($urlInstance);
+            $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+            $this->assertNotNull(yield \response_body($urlInstance));
+            \response_clear($urlInstance);
+        }, $responses);
     }
 
     public function testRequestGet()
@@ -126,29 +106,21 @@ class CoreTest extends TestCase
 
     public function taskRequestPost()
     {
-        $pipedream = yield \request(\http_post(self::TARGET_URL, ["foo" => "bar"]));
+        $pipedream = yield \request(\http_post(self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
         $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
 
         $responses = yield \fetch($pipedream, $httpBin);
         $this->assertCount(2, $responses);
 
-        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$pipedream]);
-        $urlInstance = $responses[$pipedream];
-        $this->assertTrue(\response_ok($urlInstance));
-        $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
-        $ok = \response_phrase($urlInstance);
-        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-        $this->assertNotNull(yield \response_body($urlInstance));
-        \response_clear($urlInstance);
-
-        $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $responses[$httpBin]);
-        $urlsInstance = $responses[$httpBin];
-        $this->assertTrue(\response_ok($urlsInstance));
-        $this->assertEquals(Response::STATUS_OK, \response_code($urlsInstance));
-        $ok = \response_phrase($urlsInstance);
-        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-        $this->assertEquals('{"success":true}', yield \response_body($urlInstance));
-        \response_clear($urlsInstance);
+        \array_map(function($urlInstance) {
+            $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
+            $this->assertTrue(\response_ok($urlInstance));
+            $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
+            $ok = \response_phrase($urlInstance);
+            $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+            $this->assertNotNull(yield \response_body($urlInstance));
+            \response_clear($urlInstance);
+        }, $responses);
     }
 
     public function testRequestPost()
@@ -178,7 +150,7 @@ class CoreTest extends TestCase
         \response_clear('pipe');
 
 		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage('Invalid access/call on null, no `request` or `response` instance found!');
+		$this->expectExceptionMessage(\BAD_CALL);
         $this->assertEquals('{"success":true}', yield \response_body('bin'));
         \http_clear('bin');
     }
@@ -186,5 +158,52 @@ class CoreTest extends TestCase
     public function testRequestPut()
     {
         \coroutine_run($this->taskRequestPut());
+    }
+
+    public function taskRequestFailing()
+    {
+        $response = yield \http_options('test');
+        $this->assertFalse($response);
+        $response = yield \http_options();
+        $this->assertFalse($response);
+
+        $response = yield \http_head('test');
+        $this->assertFalse($response);
+        $response = yield \http_head();
+        $this->assertFalse($response);
+
+        $response = yield \http_get('test');
+        $this->assertFalse($response);
+        $response = yield \http_get();
+        $this->assertFalse($response);
+
+        $response = yield \http_post('test');
+        $this->assertFalse($response);
+        $response = yield \http_post();
+        $this->assertFalse($response);
+
+        $response = yield \http_put('test');
+        $this->assertFalse($response);
+        $response = yield \http_put();
+        $this->assertFalse($response);
+
+        $response = yield \http_patch('test');
+        $this->assertFalse($response);
+        $response = yield \http_patch();
+        $this->assertFalse($response);
+
+        $response = yield \http_delete('test');
+        $this->assertFalse($response);
+        $response = yield \http_delete();
+        $this->assertFalse($response);
+
+		$this->expectException(\LengthException::class);
+        \fetchOptions(3);
+        $responses = yield \fetch([1]);
+    }
+
+    public function testRequestFailing()
+    {
+        \coroutine_run($this->taskRequestFailing());
     }
 }

@@ -145,9 +145,9 @@ if (!\function_exists('hyper')) {
 
 	\define('BAD_CALL', "Invalid access/call on null, no `request` or `response` instance found!");
 
-    function hyper()
+    function hyper(callable $awaitableFunction, ...$args)
     {
-        return true;
+        return yield yield $awaitableFunction(...$args);
     }
 
 	/**
@@ -232,7 +232,7 @@ if (!\function_exists('hyper')) {
 
         $http = \http_instance($tag);
         if ($isRequest instanceof RequestInterface) {
-            $httpFunction = \awaitAble([$http,'sendRequest'], $isRequest);
+            $httpFunction = $http->sendRequest($isRequest);
         } elseif ($isRequest instanceof \Generator) {
             global $__uri__, $__uriTag__;
             $httpFunction = $isRequest;
@@ -246,7 +246,7 @@ if (!\function_exists('hyper')) {
             $url = \array_shift($isRequest);
             $data = \array_shift($isRequest);
             $request = $http->request($method, $url, $data, $isRequest);
-            $httpFunction = \awaitAble([$http,'sendRequest'], $request);
+            $httpFunction = $http->sendRequest($request);
         }
 
         return Hyper::awaitable($httpFunction, $http);
@@ -559,8 +559,7 @@ if (!\function_exists('hyper')) {
         if (($response = \response_instance($tag)) === null)
             \panic(\BAD_CALL);
 
-        $body = yield $response->getBody()->getContents();
-        return $body;
+        return $response->getBody()->__toString();
     }
 
     /**

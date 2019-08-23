@@ -540,10 +540,12 @@ class Hyper implements HyperInterface
         if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
             $response = Response::create($status)
             ->withProtocolVersion($version);
-        else
+        else {
+            yield;
             $response = Response::create($status)
             ->withProtocolVersion($version)
             ->withBody($stream);
+        }
 
         foreach ($this->buildResponseHeaders($headers) as $key => $value) {
             $response = $response->withHeader($key, $value);
