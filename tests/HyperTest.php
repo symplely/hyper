@@ -8,6 +8,8 @@ use Async\Request\Body;
 use Async\Request\Hyper;
 use Async\Request\Request;
 use Async\Request\Response;
+use Psr\Http\Message\StreamInterface;
+use Psr\Http\Client\RequestExceptionInterface;
 use Psr\Http\Client\ClientExceptionInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -149,6 +151,7 @@ class HyperTest extends TestCase
         $this->assertSame($url, $json->url);
         $this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
         $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
+        $this->assertInstanceOf(StreamInterface::class, $response->getBody());
 	}
 
     public function testSendRequest()
@@ -181,11 +184,35 @@ class HyperTest extends TestCase
     {
 		$this->expectException(ClientExceptionInterface::class);
 
-		yield $this->http->sendRequest(new Request(Request::METHOD_GET, 'http://foo'));
+		yield $this->http->sendRequest((new Request(Request::METHOD_GET, 'http://foo'))->debugOff());
     }
 
     public function testNetworkError()
     {
         \coroutine_run($this->taskNetworkError());
+    }
+
+    public function taskRequestError()
+    {
+		$this->expectException(RequestExceptionInterface::class);
+
+		yield $this->http->sendRequest((new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4'));
+    }
+
+    public function testRequestError()
+    {
+        \coroutine_run($this->taskRequestError());
+    }
+
+    public function taskRequestNotification()
+    {
+		$this->expectOutputRegex('/{"notification_code":2,"severity":0,"message":null,"message_code":0,"bytes_transferred":0,"bytes_max":0}\nConnected/');
+
+		yield $this->http->sendRequest((new Request(Request::METHOD_PATCH, self::TARGET_URLS))->debugOn());
+    }
+
+    public function testRequestNotification()
+    {
+        \coroutine_run($this->taskRequestNotification());
     }
 }
