@@ -128,6 +128,31 @@ class CoreTest extends TestCase
         \coroutine_run($this->taskRequestPost());
     }
 
+    public function taskFetch()
+    {
+        $responses = yield \fetch(
+            \http_options(self::TARGET_URL),
+            \http_delete(self::TARGET_URL, ["foo" => "bar"]),
+            \http_patch(self::TARGET_URL, ["foo" => "bar"])
+        );
+        $this->assertCount(3, $responses);
+
+        foreach($responses as $key => $urlInstance) {
+            $this->assertTrue(\is_type($key, 'int'));
+            $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
+            $this->assertTrue(\response_ok($urlInstance));
+            $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
+            $ok = \response_phrase($urlInstance);
+            $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+            \response_clear($urlInstance);
+        };
+    }
+
+    public function testFetch()
+    {
+        \coroutine_run($this->taskFetch());
+    }
+
     public function taskRequestPut()
     {
         $data['name'] = 'github';
