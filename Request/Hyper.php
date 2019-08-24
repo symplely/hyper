@@ -40,7 +40,6 @@ class Hyper implements HyperInterface
             'Accept-Charset' => 'utf-8',
             'Accept-Language' => 'en-US,en;q=0.9',
             'X-Powered-By' => 'PHP/' . \PHP_VERSION,
-            'Connection' => 'close',
         ]
     ];
 
@@ -284,11 +283,8 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function get(string $url = null, array ...$authorizeHeaderOptions)
+    public function get(string $url, array ...$authorizeHeaderOptions)
     {
-        if (empty($url))
-            return false;
-
         return $this->sendRequest(
             $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions)
         );
@@ -297,11 +293,8 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function post(string $url = null, $data = null, array ...$authorizeHeaderOptions)
+    public function post(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        if (empty($url))
-            return false;
-
         return $this->sendRequest(
             $this->request(Request::METHOD_POST, $url, $data, $authorizeHeaderOptions)
         );
@@ -310,11 +303,8 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function head(string $url = null, array ...$authorizeHeaderOptions)
+    public function head(string $url, array ...$authorizeHeaderOptions)
     {
-        if (empty($url))
-            return false;
-
         $response = yield $this->sendRequest(
             $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions)
         );
@@ -329,11 +319,8 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function patch(string $url = null, $data = null, array ...$authorizeHeaderOptions)
+    public function patch(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        if (empty($url))
-            return false;
-
         return $this->sendRequest(
             $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions)
         );
@@ -342,11 +329,8 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function put(string $url = null, $data = null, array ...$authorizeHeaderOptions)
+    public function put(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        if (empty($url))
-            return false;
-
         return $this->sendRequest(
             $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions)
         );
@@ -355,11 +339,8 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function delete(string $url = null, $data = null, array ...$authorizeHeaderOptions)
+    public function delete(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        if (empty($url))
-            return false;
-
         return $this->sendRequest(
             $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions)
         );
@@ -368,11 +349,8 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function options(string $url = null, array ...$authorizeHeaderOptions)
+    public function options(string $url, array ...$authorizeHeaderOptions)
     {
-        if (empty($url))
-            return false;
-
         return $this->sendRequest(
             $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions)
         );
@@ -635,9 +613,6 @@ class Hyper implements HyperInterface
 
 	protected function optionsHeaderSplicer(array ...$headersOptions): array
 	{
-        if (empty($headersOptions))
-            return [];
-
         $headersOptions = $headersOptions[0];
         $header['headers'] = $authorizer = $headers = $options = [];
         if (isset($headersOptions[0][0])) {

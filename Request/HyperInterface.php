@@ -79,7 +79,7 @@ interface HyperInterface extends RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function get(string $url = null, array ...$authorizeHeaderOptions);
+    public function get(string $url, array ...$authorizeHeaderOptions);
 
     /**
      * Make a POST call.
@@ -90,7 +90,7 @@ interface HyperInterface extends RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function post(string $url = null, $data = null, array ...$authorizeHeaderOptions);
+    public function post(string $url, $data = null, array ...$authorizeHeaderOptions);
 
     /**
      * Make a HEAD call.
@@ -100,7 +100,7 @@ interface HyperInterface extends RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function head(string $url = null, array ...$authorizeHeaderOptions);
+    public function head(string $url, array ...$authorizeHeaderOptions);
 
     /**
      * Make a PATCH call.
@@ -111,7 +111,7 @@ interface HyperInterface extends RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function patch(string $url = null, $data = null, array ...$authorizeHeaderOptions);
+    public function patch(string $url, $data = null, array ...$authorizeHeaderOptions);
 
     /**
      * Make a PUT call.
@@ -122,7 +122,7 @@ interface HyperInterface extends RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function put(string $url = null, $data = null, array ...$authorizeHeaderOptions);
+    public function put(string $url, $data = null, array ...$authorizeHeaderOptions);
 
     /**
      * Make a DELETE call.
@@ -133,7 +133,7 @@ interface HyperInterface extends RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function delete(string $url = null, $data = null, array ...$authorizeHeaderOptions);
+    public function delete(string $url, $data = null, array ...$authorizeHeaderOptions);
 
     /**
      * Make an OPTIONS call.
@@ -143,7 +143,7 @@ interface HyperInterface extends RequestMethodInterface
      * @param array ...$authorizeHeaderOptions
      * @return ResponseInterface|bool
      */
-    public function options(string $url = null, array ...$authorizeHeaderOptions);
+    public function options(string $url, array ...$authorizeHeaderOptions);
 
     /**
      * Make an request

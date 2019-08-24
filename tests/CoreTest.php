@@ -87,14 +87,13 @@ class CoreTest extends TestCase
 
         $responses = yield \fetch($pipedream, $httpBin, $times);
         $this->assertCount(3, $responses);
-
         \array_map(function($urlInstance) {
             $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
             $this->assertTrue(\response_ok($urlInstance));
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
             $ok = \response_phrase($urlInstance);
             $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-            $this->assertNotNull(yield \response_body($urlInstance));
+            $this->assertNotNull(\response_body($urlInstance));
             \response_clear($urlInstance);
         }, $responses);
     }
@@ -106,7 +105,7 @@ class CoreTest extends TestCase
 
     public function taskRequestPost()
     {
-        $httpBin = yield \request(\http_post(self::TARGET_URLS.'post', ["foo" => "bar"]));
+        $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
         $pipedream = yield \request(\http_post(self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
 
         $responses = yield \fetch($pipedream, $httpBin);
@@ -119,7 +118,8 @@ class CoreTest extends TestCase
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
             $ok = \response_phrase($urlInstance);
             $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-            $this->assertNotNull(yield \response_body($urlInstance));
+            $this->assertNotNull(\response_body($urlInstance));
+            \response_clear($urlInstance);
         };
     }
 

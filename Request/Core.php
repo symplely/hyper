@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 
 use Async\Request\Hyper;
+use Async\Request\Request;
 use Async\Request\HyperInterface;
 use Async\Request\BodyInterface;
 use Psr\Http\Message\RequestInterface;
@@ -145,9 +146,38 @@ if (!\function_exists('hyper')) {
 
 	\define('BAD_CALL', "Invalid access/call on null, no `request` or `response` instance found!");
 
-    function hyper(callable $awaitableFunction, ...$args)
+    function hyper(): array
     {
-        return yield yield $awaitableFunction(...$args);
+        $args = \func_get_args();
+        $isRequest = \array_shift($args);
+        if (\is_string($isRequest)) {
+            $tag = $isRequest;
+            $isRequest = \array_shift($args);
+            if (!empty($args))
+                 $isRequest = \array_shift($args);
+        } else {
+            $tag = null;
+        }
+
+        $http = \http_instance($tag);
+        if ($isRequest instanceof RequestInterface) {
+            $httpFunction = \awaitAble([$http, 'sendRequest'], $isRequest);
+        } elseif ($isRequest instanceof \Generator) {
+            global $__uriTag__;
+            $httpFunction = $isRequest;
+            if (isset($__uriTag__[$tag])
+                && $__uriTag__[$tag] instanceof HyperInterface
+            ) {
+                $http = $__uriTag__[$tag];
+            }
+        } elseif (\is_array($isRequest)) {
+            $method = \array_shift($isRequest);
+            $url = \array_shift($isRequest);
+            $data = \array_shift($isRequest);
+            $httpFunction = \http_function($method, $url, $data, $isRequest);
+        }
+
+        return [$httpFunction, $http];
     }
 
 	/**
@@ -219,36 +249,8 @@ if (!\function_exists('hyper')) {
 	 */
 	function request()
 	{
-        $args = \func_get_args();
-        $isRequest = \array_shift($args);
-        if (\is_string($isRequest)) {
-            $tag = $isRequest;
-            $isRequest = \array_shift($args);
-            if (!empty($args))
-                 $isRequest = \array_shift($args);
-        } else {
-            $tag = 'null';
-        }
-
-        $http = \http_instance($tag);
-        if ($isRequest instanceof RequestInterface) {
-            $httpFunction = $http->sendRequest($isRequest);
-        } elseif ($isRequest instanceof \Generator) {
-            global $__uri__, $__uriTag__;
-            $httpFunction = $isRequest;
-            if (($tag !== 'null') && isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
-                $http = $__uriTag__[$tag];
-            } elseif (($tag === 'null') && isset($__uri__) && $__uri__ instanceof HyperInterface) {
-                $http = $__uri__;
-            }
-        } elseif (\is_array($isRequest)) {
-            $method = \array_shift($isRequest);
-            $url = \array_shift($isRequest);
-            $data = \array_shift($isRequest);
-            $request = $http->request($method, $url, $data, $isRequest);
-            $httpFunction = $http->sendRequest($request);
-        }
-
+        $requests = \func_get_args();
+        [$httpFunction, $http] = \hyper(...$requests);
         return Hyper::awaitable($httpFunction, $http);
     }
 
@@ -262,18 +264,41 @@ if (!\function_exists('hyper')) {
 		return Hyper::cancel($httpId);
     }
 
+	function http_function(string $method, string $url, $data = [], ...$options): \Generator
+	{
+        switch ($method) {
+            case Request::METHOD_PUT:
+                $httpFunction = \http_put($url, $data, $options);
+                break;
+            case Request::METHOD_POST:
+                $httpFunction = \http_post($url, $data, $options);
+                break;
+            case Request::METHOD_GET:
+                $httpFunction = \http_get($url, $data);
+                break;
+            case Request::METHOD_PATCH:
+                $httpFunction = \http_patch($url, $data, $options);
+                break;
+            case Request::METHOD_HEAD:
+                $httpFunction = \http_head($url, $data);
+                break;
+            case Request::METHOD_OPTIONS:
+                $httpFunction = \http_options($url, $data);
+                break;
+            case Request::METHOD_DELETE:
+                $httpFunction = \http_delete($url, $data, $options);
+                break;
+        }
+
+        return $httpFunction;
+    }
+
 	function http_instance(string $tag = null): HyperInterface
 	{
         global $__uri__, $__uriTag__;
 
-        if ($tag === 'null') {
-            $__uri__ = new Hyper;
-            return $__uri__;
-        }
-
         if (empty($tag)) {
-            if (!$__uri__ instanceof HyperInterface)
-                $__uri__ = new Hyper;
+            $__uri__ = new Hyper;
         } elseif (!isset($__uriTag__[$tag]) || !$__uriTag__[$tag] instanceof HyperInterface) {
             $__uriTag__[$tag] = new Hyper;
         }
@@ -431,7 +456,7 @@ if (!\function_exists('hyper')) {
         $instance = null;
         if (\strpos($tag, '://') !== false) {
             $url = $tag;
-            $tag = 'null';
+            $tag = null;
             $instance = \http_instance($tag);
         } elseif (!empty($options)) {
             $url = \array_shift($options);

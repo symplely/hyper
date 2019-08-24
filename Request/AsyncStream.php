@@ -281,11 +281,8 @@ class AsyncStream implements StreamInterface
         $handle = $this->getResource();
 
         if ($this->readable && ($handle !== null)) {
-			$buffer = "";
-			while (!\feof($handle)) {
-				yield Kernel::readWait($handle);
-				$buffer .= \stream_get_contents($handle, 1024);
-			}
+			yield Kernel::readWait($handle);
+			$buffer = \stream_get_contents($handle);
 
             if (false !== $buffer) {
                 return $buffer;
@@ -341,7 +338,6 @@ class AsyncStream implements StreamInterface
      */
     public function read($length)
     {
-        yield;
         $handle = $this->getResource();
 
         if (!$this->readable || ($handle === null)) {
@@ -391,7 +387,6 @@ class AsyncStream implements StreamInterface
      */
     public function write($string)
     {
-        yield;
         $handle = $this->getResource();
 
         if (!$this->writable || ($handle === null)) {
@@ -482,8 +477,6 @@ class AsyncStream implements StreamInterface
 	 */
 	public static function copyResource($resource, $copy = null)
 	{
-        yield;
-
 		if (!\is_resource($resource)) {
 			throw new \InvalidArgumentException('Not resource.');
 		}
