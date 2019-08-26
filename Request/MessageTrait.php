@@ -43,20 +43,6 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
-     */
-    public function getHeaderLine($name): string
-    {
-        $header = $this->getHeader($name);
-
-        if( empty($header) ){
-            return "";
-        }
-
-        return "{$name}: " . implode(",", $header);
-    }
-
-    /**
      * {@inheritDoc}
      */
     public function getBody(): StreamInterface

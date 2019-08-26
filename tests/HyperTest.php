@@ -132,6 +132,7 @@ class HyperTest extends TestCase
         );
         $json = yield \response_json($response);
 
+        $this->assertTrue(\response_has($response, "Access-Control-Allow-Origin"));
         $this->assertTrue($response->hasHeader('X-Content-Type-Options'));
         $this->assertSame('Symplely!', $json->headers->{'X-Added-Header'});
         $this->assertSame('Hyper', $json->headers->{'X-Http-Client'});

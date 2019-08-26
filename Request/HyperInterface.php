@@ -38,7 +38,6 @@ interface HyperInterface extends RequestMethodInterface
 
 	/**
 	 * Run awaitable HTTP tasks in the httpId sequence concurrently.
-	 * If any awaitable in httpId is a coroutine, it is automatically scheduled as a Task.
 	 *
 	 * If all awaitables are completed successfully, the result is an aggregate list of returned values.
 	 * The order of result values corresponds to the order of awaitables in httpId.
@@ -50,6 +49,8 @@ interface HyperInterface extends RequestMethodInterface
 	 *
 	 * @param array $httpId
 	 * @return array
+     *
+     * @throws \Exception - if not an HTTP task id
 	 */
     public static function wait(array $httpId);
 

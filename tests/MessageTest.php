@@ -25,7 +25,7 @@ class MessageTest extends TestCase
         $request = $request->withProtocolVersion("2.1");
     }
 
-    public function test_with_protocol_version_is_imuutable()
+    public function test_with_protocol_version_is_immutable()
     {
         $request = new Request;
         $newRequest = $request->withProtocolVersion("2.0");
@@ -49,7 +49,7 @@ class MessageTest extends TestCase
     public function test_get_header_returns_array()
     {
         $request = (new Request)->withHeader("Content-Type", "application/json");
-        $this->assertTrue(is_array($request->getHeader("Content-Type")));
+        $this->assertTrue(\is_array($request->getHeader("Content-Type")));
     }
 
     public function test_get_header_returns_null_if_header_not_found()
@@ -86,14 +86,14 @@ class MessageTest extends TestCase
 
         $request = $request->withAddedHeader("X-Foo", "FooHeader");
 
-        $this->assertEquals("X-Foo: FooHeader", $request->getHeaderLine("X-Foo"));
+        $this->assertEquals("FooHeader", $request->getHeaderLine("X-Foo"));
     }
 
     public function test_with_header_replaces_existing_header()
     {
         $request = (new Request)->withHeader("Content-Type", "application/json");
         $request = $request->withHeader("Content-Type", "text/html");
-        $this->assertEquals("Content-Type: text/html", $request->getHeaderLine("Content-Type"));
+        $this->assertEquals("text/html", $request->getHeaderLine("Content-Type"));
     }
 
     public function test_with_added_header_adds_new_value()

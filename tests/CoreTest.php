@@ -59,6 +59,7 @@ class CoreTest extends TestCase
         }, $responses);
 
         \http_clear();
+        \response_clear();
         $this->assertNull($__uri__);
 
         return \json_encode($statuses);
@@ -107,7 +108,11 @@ class CoreTest extends TestCase
     {
         $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
         $pipedream = yield \request(\http_post(self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
+        //$bad = yield \request(
+       //     (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
+        //);
 
+        //\fetchOptions(0, false);
         $responses = yield \fetch($pipedream, $httpBin);
         $this->assertCount(2, $responses);
 
@@ -121,6 +126,11 @@ class CoreTest extends TestCase
             $this->assertNotNull(\response_body($urlInstance));
             \response_clear($urlInstance);
         };
+
+        \response_clear();
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage(\BAD_CALL);
+        $this->assertNull(yield \response_xml());
     }
 
     public function testRequestPost()
@@ -130,22 +140,11 @@ class CoreTest extends TestCase
 
     public function taskFetch()
     {
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage(\BAD_ACCESS);
         $responses = yield \fetch(
-            \http_options(self::TARGET_URL),
-            \http_delete(self::TARGET_URL, ["foo" => "bar"]),
-            \http_patch(self::TARGET_URL, ["foo" => "bar"])
+            \http_options(self::TARGET_URL)
         );
-        $this->assertCount(3, $responses);
-
-        foreach($responses as $key => $urlInstance) {
-            $this->assertTrue(\is_type($key, 'int'));
-            $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
-            $this->assertTrue(\response_ok($urlInstance));
-            $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
-            $ok = \response_phrase($urlInstance);
-            $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-            \response_clear($urlInstance);
-        };
     }
 
     public function testFetch()
@@ -161,7 +160,7 @@ class CoreTest extends TestCase
         yield \request('pipe', \http_put('pipe', self::TARGET_URL, $data));
 
         while (true) {
-            if (\response_ok('pipe') == null) {
+            if (\response_ok('pipe') === null) {
                 yield;
             } else {
                 break;
@@ -183,6 +182,98 @@ class CoreTest extends TestCase
     public function testRequestPut()
     {
         \coroutine_run($this->taskRequestPut());
+    }
+
+    public function taskRequestPatch()
+    {
+        $data['name'] = 'github';
+        $data['key'] = 'XT3837';
+        yield \request('bin', [Request::METHOD_PATCH, self::TARGET_URLS.'patch', $data]);
+        yield \request('pipe', \http_patch('pipe', self::TARGET_URL, $data));
+
+        while (true) {
+            if (\response_code('pipe') === null) {
+                yield;
+            } else {
+                break;
+            }
+        }
+
+        $this->assertTrue(\response_ok('pipe'));
+        $ok = \response_phrase('pipe');
+        $this->assertEquals(Response::REASON_PHRASES[200], $ok);
+        $this->assertEquals('{"success":true}', yield \response_body('pipe'));
+        \response_clear('pipe');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage(\BAD_CALL);
+        $this->assertEquals('{"success":true}', yield \response_json('bin'));
+        \http_clear('bin');
+    }
+
+    public function testRequestPatch()
+    {
+        \coroutine_run($this->taskRequestPatch());
+    }
+
+    public function taskRequestDelete()
+    {
+        $data['name'] = 'github';
+        $data['key'] = 'XT3837';
+
+        yield \request([Request::METHOD_DELETE, self::TARGET_URLS.'delete', $data]);
+        yield \request('pipe', \http_delete('pipe', self::TARGET_URL, Body::create(Body::JSON, $data)));
+
+        while (true) {
+            if (\response_phrase() === null) {
+                yield;
+            } else {
+                break;
+            }
+        }
+
+        $this->assertTrue(\response_ok());
+        $this->assertEquals(Response::STATUS_OK, \response_code());
+        $this->assertSame("XT3837", (yield \response_json())->form->{'key'});
+        \response_clear();
+
+        $this->assertSame(true, (yield \response_json('pipe'))->success);
+        \http_clear('pipe');
+        \http_clear();
+    }
+
+    public function testRequestDelete()
+    {
+        \coroutine_run($this->taskRequestDelete());
+    }
+
+    public function taskRequestOptions()
+    {
+        yield \request('pipe', \http_options('pipe', self::TARGET_URL));
+        yield \request([Request::METHOD_OPTIONS, self::TARGET_URLS.'options']);
+
+        while (true) {
+            if (\response_header('pipe', "Access-Control-Allow-Methods") === null) {
+                yield;
+            } else {
+                break;
+            }
+        }
+
+        $this->assertTrue(\response_ok('pipe'));
+        $this->assertTrue(\response_has('pipe', "Access-Control-Allow-Methods"));
+        $this->assertEquals(Response::STATUS_NO_CONTENT, \response_code('pipe'));
+        $this->assertEquals("", yield \response_body('pipe'));
+        \response_clear('pipe');
+
+        $this->assertTrue(\response_has(null, "Access-Control-Allow-Methods"));
+        $this->assertEquals('', yield \response_body());
+        \response_clear();
+    }
+
+    public function testRequestOptions()
+    {
+        \coroutine_run($this->taskRequestOptions());
     }
 
     public function taskRequestFailing()
