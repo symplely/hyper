@@ -161,15 +161,11 @@ class Hyper implements HyperInterface
                                 $tasks->customState('started');
                                 try {
                                     $coroutine->runCoroutines();
-                                } catch (\Exception $e) {
+                                } catch (\Throwable $e) {
                                     $tasks->clearResult();
                                     $tasks->setState('erred');
-                                    self::updateList($coroutine, $id, $taskList, true, false, true);
-                                    $count--;
-                                    unset($taskList[$id]);
-                                    //$tasks->setException($e);
-                                    //$coroutine->schedule($tasks);
-                                    $coroutine->runCoroutines();
+                                    if ($waitShouldError)
+                                        $tasks->setException($e);
                                 }
                             } elseif ($tasks->completed()) {
                                 $tasks->customState('ended');
@@ -178,23 +174,15 @@ class Hyper implements HyperInterface
                                 $count--;
                                 unset($taskList[$id]);
                                 self::updateList($coroutine, $id);
-                            } elseif ($tasks->erred()) {
+                            } elseif ($tasks->erred() || $tasks->cancelled()) {
+                                $responses[$id] = null;
                                 self::updateList($coroutine, $id, $taskList, true, false, true);
                                 $count--;
-                                unset($taskList[$id]);
-                                $exception = $tasks->exception();
+                                //unset($taskList[$id]);
                                 if ($waitShouldError) {
                                     self::$waitResumer = [$httpList, $count, $responses, $taskList];
+                                    $exception = $tasks->cancelled() ? new CancelledError() : $tasks->exception();
                                     $task->setException($exception);
-                                    $coroutine->schedule($tasks);
-                                }
-                            } elseif ($tasks->cancelled()) {
-                                self::updateList($coroutine, $id, $taskList, true, false, true);
-                                $count--;
-                                unset($taskList[$id]);
-                                if ($waitShouldError) {
-                                    self::$waitResumer = [$httpList, $count, $responses, $taskList];
-                                    $task->setException(new CancelledError());
                                     $coroutine->schedule($tasks);
                                 }
                             }
@@ -273,12 +261,14 @@ class Hyper implements HyperInterface
         bool $cancel = false,
         bool $forceUpdate = false)
 	{
-        if ($abort && !empty($list)) {
+        if ($abort && isset($list[$id])) {
             $list[$id]->customState('aborted');
             $http = $list[$id]->getCustomData();
-            [, $stream] = $http->getHyper();
-            if ($stream instanceof StreamInterface) {
-                $stream->close();
+            if ($http instanceof HyperInterface) {
+                [, $stream] = $http->getHyper();
+                if ($stream instanceof StreamInterface) {
+                    $stream->close();
+               }
             }
         }
 
@@ -288,8 +278,8 @@ class Hyper implements HyperInterface
             if (empty($list) || $forceUpdate) {
                 $list = $coroutine->completedList();
             }
-
-            unset($list[$id]);
+            if (isset($list[$id]))
+                unset($list[$id]);
             $coroutine->updateCompleted($list);
         }
     }
@@ -532,9 +522,9 @@ class Hyper implements HyperInterface
             foreach ($this->buildResponseHeaders($headers) as $key => $value) {
                 $response = $response->withHeader($key, $value);
             }
-        }
 
-        return $response;
+            return $response;
+        }
     }
 
     /**

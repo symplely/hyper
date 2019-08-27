@@ -24,7 +24,8 @@ class NetworkException extends ClientException implements NetworkExceptionInterf
 	 * @param \Psr\Http\Message\RequestInterface $request
 	 * @param \Exception|null $previous
 	 */
-	public function __construct(string $message, RequestInterface $request, Exception $previous = null){
+    public function __construct(string $message, RequestInterface $request, Exception $previous = null)
+    {
 		$this->request = $request;
 
 		parent::__construct($message, 0, $previous);
@@ -37,7 +38,8 @@ class NetworkException extends ClientException implements NetworkExceptionInterf
 	 *
 	 * @return \Psr\Http\Message\RequestInterface
 	 */
-	public function getRequest():RequestInterface{
+    public function getRequest():RequestInterface
+    {
 		return $this->request;
 	}
 

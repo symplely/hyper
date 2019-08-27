@@ -108,11 +108,7 @@ class CoreTest extends TestCase
     {
         $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
         $pipedream = yield \request(\http_post(self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
-        //$bad = yield \request(
-       //     (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
-        //);
 
-        //\fetchOptions(0, false);
         $responses = yield \fetch($pipedream, $httpBin);
         $this->assertCount(2, $responses);
 
@@ -150,6 +146,29 @@ class CoreTest extends TestCase
     public function testFetch()
     {
         \coroutine_run($this->taskFetch());
+    }
+
+    public function taskFetchFail()
+    {
+        $pipedream = yield \request('pine', \http_post('pine', self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
+        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
+        $bad = yield \request(
+            (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
+        );
+
+        \fetchOptions(0, false);
+        $responses = yield \fetch($pipedream, $httpBin, $bad);
+        $this->assertCount(2, $responses);
+print_r($responses);
+\http_clear('pine');
+\http_clear('bin');
+\response_clear('pine');
+\response_clear('bin');
+    }
+
+    public function testFetchFail()
+    {
+        \coroutine_run($this->taskFetchFail());
     }
 
     public function taskRequestPut()
