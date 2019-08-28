@@ -380,9 +380,6 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_get(string $tagUri = null, ...$authorizeHeaderOptions)
 	{
-		if (empty($tagUri))
-            return false;
-
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             return yield \response_set(yield $instance->get($url, $option), $tag);
@@ -399,9 +396,6 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_put(string $tagUri = null, ...$authorizeHeaderOptions)
 	{
-		if (empty($tagUri))
-            return false;
-
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -419,9 +413,6 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_delete(string $tagUri = null, ...$authorizeHeaderOptions)
 	{
-		if (empty($tagUri))
-            return false;
-
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -439,9 +430,6 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_post(string $tagUri = null, ...$authorizeHeaderOptions)
 	{
-		if (empty($tagUri))
-            return false;
-
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -459,9 +447,6 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_patch(string $tagUri = null, ...$authorizeHeaderOptions)
 	{
-		if (empty($tagUri))
-            return false;
-
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -479,9 +464,6 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_options(string $tagUri = null, ...$authorizeHeaderOptions)
 	{
-		if (empty($tagUri))
-            return false;
-
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             return yield \response_set(yield $instance->options($url, $option), $tag);
@@ -498,9 +480,6 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_head(string $tagUri = null, ...$authorizeHeaderOptions)
 	{
-		if (empty($tagUri))
-            return false;
-
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             return yield \response_set(yield $instance->head($url, $option), $tag);
@@ -514,6 +493,9 @@ if (!\function_exists('hyper')) {
 	 */
     function createTagAndSplit($tag, $authorizeHeaderOptions = [])
     {
+		if (empty($tag))
+            return false;
+
         $instance = null;
         if (\strpos($tag, '://') !== false) {
             $url = $tag;
