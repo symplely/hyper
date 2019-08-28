@@ -1,5 +1,7 @@
 # hyper
 
+[![Build Status](https://travis-ci.org/symplely/hyper.svg?branch=master)](https://travis-ci.org/symplely/hyper)[![Build status](https://ci.appveyor.com/api/projects/status/0l48ubuakc6wtqqm/branch/master?svg=true)](https://ci.appveyor.com/project/techno-express/hyper/branch/master)[![codecov](https://codecov.io/gh/symplely/hyper/branch/master/graph/badge.svg)](https://codecov.io/gh/symplely/hyper)[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d902c3aa05d74df699aa9e962e70f63d)](https://www.codacy.com/app/techno-express/hyper?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=symplely/hyper&amp;utm_campaign=Badge_Grade)[![Maintainability](https://api.codeclimate.com/v1/badges/db8ee4adb142ffad35c9/maintainability)](https://codeclimate.com/github/symplely/hyper/maintainability)
+
 A simple asynchronous PSR-18 HTTP client using coroutines.
 
 **This package is under development, all `asynchronous` parts has not been fully implemented. The proper `async` way to make PSR-18 `request`/calls or handle `response`/results, not tested, nor added.**
