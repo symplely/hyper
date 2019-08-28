@@ -189,11 +189,11 @@ class Hyper implements HyperInterface
                                     self::updateList($coroutine, $id);
                                 }
                             } elseif ($tasks->erred() || $tasks->cancelled()) {
+                                $exception = $tasks->cancelled() ? new CancelledError() : $tasks->exception();
                                 self::updateList($coroutine, $id, $taskList, true, false, true);
                                 $count--;
                                 unset($taskList[$id]);
                                 if ($waitShouldError) {
-                                    $exception = $tasks->cancelled() ? new CancelledError() : $tasks->exception();
                                     $task->setException($exception);
                                     $coroutine->schedule($task);
                                 }

@@ -543,14 +543,16 @@ if (!\function_exists('hyper')) {
      *
      * @return \ResponseInterface
      */
-	function response_set(ResponseInterface $response, string $tag = null)
+	function response_set($response, string $tag = null)
 	{
-        global $__uriResponse__, $__uriResponseTag__;
+        if ($response instanceof ResponseInterface) {
+            global $__uriResponse__, $__uriResponseTag__;
 
-        if (empty($tag)) {
-            $__uriResponse__ = $response;
-        } else {
-            $__uriResponseTag__[$tag] = $response;
+            if (empty($tag)) {
+                $__uriResponse__ = $response;
+            } else {
+                $__uriResponseTag__[$tag] = $response;
+            }
         }
 
         return $response;
