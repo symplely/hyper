@@ -18,7 +18,6 @@ use Async\Request\Exception\NetworkException;
 use Async\Request\Exception\RequestException;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -66,7 +65,8 @@ class Hyper implements HyperInterface
      */
     protected $request = null;
 
-    protected static $waitResumer = null;
+    protected $httpId = null;
+
     protected static $waitCount = 0;
     protected static $waitShouldError = true;
     protected static $waitAbortedCleared = true;
@@ -82,6 +82,11 @@ class Hyper implements HyperInterface
         $this->request = null;
 
         return [$request, $stream];
+    }
+
+	public function hyperId(int $httpId)
+	{
+        $this->httpId = $httpId;
     }
 
     /**
@@ -159,31 +164,38 @@ class Hyper implements HyperInterface
                                 && ($tasks->pending() || $tasks->rescheduled())
                             ) {
                                 $tasks->customState('started');
-                                try {
-                                    $coroutine->runCoroutines();
-                                } catch (\Throwable $e) {
-                                    $tasks->clearResult();
-                                    $tasks->setState('erred');
-                                    if ($waitShouldError)
-                                        $tasks->setException($e);
-                                }
+                                $coroutine->runCoroutines();
                             } elseif ($tasks->completed()) {
                                 $tasks->customState('ended');
                                 $tasks->getCustomData()->getHyper();
-                                $responses[$id] = $tasks->result();
-                                $count--;
-                                unset($taskList[$id]);
-                                self::updateList($coroutine, $id);
+                                $result = $tasks->result();
+                                if (is_array($result)
+                                    && (isset($result[0]) && $result[0] instanceof \Throwable)
+                                ) {
+                                    $exception = $result[0];
+                                    $httpId = $result[1];
+                                    $tasks->setState('erred');
+                                    self::updateList($coroutine, $httpId, $taskList, true, false, true);
+                                    $count--;
+                                    unset($taskList[$httpId]);
+                                    if ($waitShouldError) {
+                                        $task->setException($exception);
+                                        $coroutine->schedule($task);
+                                    }
+                                } else {
+                                    $responses[$id] = $result;
+                                    $count--;
+                                    unset($taskList[$id]);
+                                    self::updateList($coroutine, $id);
+                                }
                             } elseif ($tasks->erred() || $tasks->cancelled()) {
-                                $responses[$id] = null;
                                 self::updateList($coroutine, $id, $taskList, true, false, true);
                                 $count--;
-                                //unset($taskList[$id]);
+                                unset($taskList[$id]);
                                 if ($waitShouldError) {
-                                    self::$waitResumer = [$httpList, $count, $responses, $taskList];
                                     $exception = $tasks->cancelled() ? new CancelledError() : $tasks->exception();
                                     $task->setException($exception);
-                                    $coroutine->schedule($tasks);
+                                    $coroutine->schedule($task);
                                 }
                             }
                         }
@@ -204,7 +216,6 @@ class Hyper implements HyperInterface
                     }
                 }
 
-                self::$waitResumer = null;
                 $task->sendValue($responses);
                 $coroutine->schedule($task);
             }
@@ -220,6 +231,7 @@ class Hyper implements HyperInterface
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpFunction, $hyper) {
                 $httpId = $coroutine->createTask($httpFunction);
                 $taskList = $coroutine->taskList();
+                $hyper->hyperId($httpId);
 				$taskList[$httpId]->customState('beginning');
                 $taskList[$httpId]->customData($hyper);
                 $task->sendValue($httpId);
@@ -475,7 +487,10 @@ class Hyper implements HyperInterface
         ];
 
         if ($request->getBody()->getSize()) {
-            $context['http']['content'] = $request->getBody()->__toString();
+            if ($request->getBody() instanceof BodyInterface)
+                $context['http']['content'] = $request->getBody()->__toString();
+            else
+                $context['http']['content'] = yield $request->getBody()->getContents();
         }
 
         $ctx = \stream_context_create($context);
@@ -494,7 +509,13 @@ class Hyper implements HyperInterface
                 $e = new RequestException($request, $error, 0);
             }
 
-            throw $e;
+            if ($this->httpId === null) {
+                throw $e;
+            } else {
+                $httpId = $this->httpId;
+                $this->httpId = null;
+                return [$e, $httpId];
+            }
         } else {
             yield;
             $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
@@ -514,6 +535,7 @@ class Hyper implements HyperInterface
                 $response = Response::create($status)
                 ->withProtocolVersion($version);
             else {
+                yield;
                 $response = Response::create($status)
                 ->withProtocolVersion($version)
                 ->withBody($stream);

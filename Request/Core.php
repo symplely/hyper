@@ -341,6 +341,35 @@ if (!\function_exists('hyper')) {
             $__uriTag__[$tag] = null;
             unset($GLOBALS['__uriTag__'][$tag]);
         }
+    }
+
+	/**
+     * Clear & Close `ALL` - `Hyper`, and `StreamInterface` Instances by.
+	 */
+	function http_clear_all()
+	{
+        global $__uri__, $__uriTag__;
+
+        if ($__uri__ instanceof HyperInterface) {
+            [, $stream] = $__uri__->getHyper();
+            if ($stream instanceof StreamInterface)
+                $stream->close();
+        }
+        unset($GLOBALS['__uri__']);
+
+        if (\is_array($__uriTag__)) {
+            $uriTags = \array_keys($__uriTag__);
+            foreach($uriTags as $key) {
+                if ($__uriTag__[$key] instanceof HyperInterface) {
+                    [, $stream] = $__uriTag__[$key]->getHyper();
+                    if ($stream instanceof StreamInterface)
+                        $stream->close();
+                }
+
+                $__uriTag__[$key] = null;
+                unset($GLOBALS['__uriTag__'][$key]);
+            }
+        }
 	}
 
 	/**
@@ -550,6 +579,33 @@ if (!\function_exists('hyper')) {
 
             $__uriResponseTag__[$tag] = null;
             unset($GLOBALS['__uriResponseTag__'][$tag]);
+        }
+    }
+
+    /**
+     * Clear `ALL` global functions response instance by.
+     *
+     * @param \ResponseInterface|mixed $tag
+     */
+	function response_clear_all()
+	{
+        global $__uriResponse__, $__uriResponseTag__;
+
+        if ($__uriResponse__ instanceof ResponseInterface)
+            $__uriResponse__->getBody()->close();
+
+        $__uriResponse__ = null;
+        unset($GLOBALS['__uriResponse__']);
+
+        if (\is_array($__uriResponseTag__)) {
+            $uriResponseTags = \array_keys($__uriResponseTag__);
+            foreach($uriResponseTags as $key) {
+                if ($__uriResponseTag__[$key] instanceof ResponseInterface)
+                    $__uriResponseTag__[$key]->getBody()->close();
+
+                $__uriResponseTag__[$key] = null;
+                unset($GLOBALS['__uriResponseTag__'][$key]);
+            }
         }
     }
 

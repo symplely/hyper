@@ -7,6 +7,7 @@ namespace Async\Tests;
 use Async\Request\Body;
 use Async\Request\Response;
 use Async\Request\Request;
+use Async\Request\Exception\RequestException;
 use PHPUnit\Framework\TestCase;
 
 class CoreTest extends TestCase
@@ -26,8 +27,8 @@ class CoreTest extends TestCase
 	protected function setUp(): void
     {
         \coroutine_clear();
-        \http_clear();
-        \response_clear();
+        \http_clear_all();
+        \response_clear_all();
     }
 
     public function task_head($websites)
@@ -148,7 +149,7 @@ class CoreTest extends TestCase
         \coroutine_run($this->taskFetch());
     }
 
-    public function taskFetchFail()
+    public function taskFetchFailSkip()
     {
         $pipedream = yield \request('pine', \http_post('pine', self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
         $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
@@ -159,11 +160,26 @@ class CoreTest extends TestCase
         \fetchOptions(0, false);
         $responses = yield \fetch($pipedream, $httpBin, $bad);
         $this->assertCount(2, $responses);
-print_r($responses);
-\http_clear('pine');
-\http_clear('bin');
-\response_clear('pine');
-\response_clear('bin');
+
+        \http_clear_all();
+        \response_clear_all();
+    }
+
+    public function testFetchFailSkip()
+    {
+        \coroutine_run($this->taskFetchFailSkip());
+    }
+
+    public function taskFetchFail()
+    {
+        $pipedream = yield \request('pine', \http_post('pine', self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
+        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
+        $bad = yield \request(
+            (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
+        );
+
+		$this->expectException(RequestException::class);
+        $responses = yield \fetch($pipedream, $httpBin, $bad);
     }
 
     public function testFetchFail()
