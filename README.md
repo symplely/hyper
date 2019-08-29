@@ -18,6 +18,15 @@ An simple advance asynchronous PSR-18 HTTP client using coroutines.
 
 ## Introduction/Usage
 
+This package is based on [**coroutines**](https://symplely.github.io/coroutine/) using `yield` an `generator`, it requires our other repo package [Coroutine](https://github.com/symplely/coroutine).
+
+There is a lot to be said about *coroutines*, but for an quick overview, checkout this [video](https://youtu.be/NsQ2QIrQShU), if you have no formulary with the concept or construction. Only one thing to keep in mind when viewing the video, is that it's an overview of callbacks vs promises vs generators, an object given an async/await construction in other languages. And the `Promise` reference there, is referred here has as an `Task`, that returns a plain `Integer`.
+
+This library and the whole *Coroutine* concept here, is base around *NEVER* having the user/developer *directly* accessing the *Task*, the *Promise* like object.
+
+```php
+```
+
 ## Functions
 
 ```php
