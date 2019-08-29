@@ -12,37 +12,46 @@ A simple asynchronous PSR-18 HTTP client using coroutines.
 composer require symplely/hyper
 ```
 
-## Making requests: The easy way
+## Making requests: The easy old fashion way, with one caveat, need to be prefix with yield
 
 The quickest and easiest way to begin making requests is to use the HTTP method name:
 
 ```php
 use Async\Request\Hyper;
 
-$http = new Hyper;
+function main() {
+    $http = new Hyper;
 
-$response = yield $http->get("https://www.google.com");
-$response = yield $http->post("https://example.com/search", ["Form data"]));
+    $response = yield $http->get("https://www.google.com");
+    $response = yield $http->post("https://example.com/search", ["Form data"]));
 ```
 
-This library has built-in methods to support the major HTTP verbs: get, post, put, patch, delete, head, and options. However, you can make **any** HTTP verb request using the **request** method directly.
+This library has built-in methods to support the major HTTP verbs: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. However, you can make **any** HTTP verb request using the **request** method directly, that returns an _PSR-7_ `RequestInterface`.
 
 ```php
-$response = yield $http->request("connect", "https://api.example.com/v1/books");
+    $request = $http->request("connect", "https://api.example.com/v1/books");
+    $response = yield $http->sendRequest($request);
 ```
 
 ## Handling responses
 
-Responses in Shuttle implement PSR-7 ResponseInterface and as such are streamable resources.
+Responses in *Hyper* implement _PSR-7_ `ResponseInterface` and as such are streamable resources.
 
 ```php
-$response = $http->get("https://api.example.com/v1/books");
+    $response = $http->get("https://api.example.com/v1/books");
 
-echo $response->getStatusCode(); // 200
-echo $response->getReasonPhrase(); // OK
-echo $response->isSuccessful(); // true
+    echo $response->getStatusCode(); // 200
+    echo $response->getReasonPhrase(); // OK
 
-$body = yield $response->getBody()->getContents();
+    // The body is return asynchronous in an non-blocking mode,
+    // and as such needs to be prefixed with `yield`
+    $body = yield $response->getBody()->getContents();
+}
+
+// All coroutines/async/await needs to be enclosed/bootstrapped
+// in one `main` entrance routine function to properly execute.
+// The function `MUST` have at least one `yield` statement.
+\coroutine_run(\main());
 ```
 
 ## Handling failed requests
@@ -51,7 +60,7 @@ This library will throw a `RequestException` by default if the request failed. T
 
 Responses with HTTP 4xx or 5xx status codes *will not* throw an exception and must be handled properly within your business logic.
 
-## Making requests: The PSR-7 way
+## Making requests: The PSR-7 way, with one caveat, need to be prefix with yield
 
 If code reusability and portability is your thing, future proof your code by making requests the PSR-7 way. Remember, PSR-7 stipulates that Request and Response messages be immutable.
 
@@ -60,21 +69,40 @@ use Async\Request\Uri;
 use Async\Request\Request;
 use Async\Request\Hyper;
 
-// Build Request message.
-$request = new Request;
-$request = $request
-    ->withMethod("get")
-    ->withUri(Uri::create("https://www.google.com"))
-    ->withHeader("Accept-Language", "en_US");
+function main() {
+    // Build Request message.
+    $request = new Request;
+    $request = $request
+        ->withMethod("get")
+        ->withUri(Uri::create("https://www.google.com"))
+        ->withHeader("Accept-Language", "en_US");
 
-// Send the Request.
-$http = new Hyper;
-$response = yield $http->sendRequest($request);
+    $http = new Hyper;
+    // Send the Request.
+    // Pauses current/task and send request,
+    // will continue next to instruction once response is received,
+    // other tasks/code continues to run.
+    $response = yield $http->sendRequest($request);
+}
+
+// All coroutines/async/await needs to be enclosed/bootstrapped
+// in one `main` entrance routine function to properly execute.
+// The function `MUST` have at least one `yield` statement.
+\coroutine_run(\main());
 ```
 
 ## Options
 
-* `headers` An array of key & value pairs to pass in with each request.
+The following options can be pass on each request.
+
+```php
+$http->request($method, $url, $body = null, array ...$authorizeHeaderOptions);
+```
+
+* `Authorization` An array with *key* as either:
+    `auth_basic`, `auth_bearer`, `auth_digest`, and *value* as `password` or `token`.
+* `Headers` An array of key & value pairs to pass in with each request.
+* `Options` An array of key & value pairs to pass in with each request.
 
 ## Request bodies
 
@@ -93,15 +121,28 @@ To submit a JSON payload with a request:
 
 ```php
 use Async\Request\Body;
+use Async\Request\Hyper;
 
-$book = [
-    "title" => "Breakfast Of Champions",
-    "author" => "Kurt Vonnegut",
-];
+function main() {
+    $book = [
+        "title" => "Breakfast Of Champions",
+        "author" => "Kurt Vonnegut",
+    ];
 
-$http->post("https://api.example.com/v1/books", [Body::JSON, $book]);
-// Or
-$http->post("https://api.example.com/v1/books", new Body(Body::JSON, $book));
-// Or
-$http->post("https://api.example.com/v1/books", Body::create(Body::JSON, $book));
+    $http = new Hyper;
+
+    yield $http->post("https://api.example.com/v1/books", [Body::JSON, $book]);
+    // Or
+    yield $http->post("https://api.example.com/v1/books", new Body(Body::JSON, $book));
+    // Or
+    yield $http->post("https://api.example.com/v1/books", Body::create(Body::JSON, $book));
+
+    // Otherwise the default, will be submitted in FORM format of `application/x-www-form-urlencoded`
+    yield $http->post("https://api.example.com/v1/books", $book);
+}
+
+// All coroutines/async/await needs to be enclosed/bootstrapped
+// in one `main` entrance routine function to properly execute.
+// The function `MUST` have at least one `yield` statement.
+\coroutine_run(\main());
 ```
