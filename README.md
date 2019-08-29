@@ -2,9 +2,226 @@
 
 [![Build Status](https://travis-ci.org/symplely/hyper.svg?branch=master)](https://travis-ci.org/symplely/hyper)[![Build status](https://ci.appveyor.com/api/projects/status/0l48ubuakc6wtqqm/branch/master?svg=true)](https://ci.appveyor.com/project/techno-express/hyper/branch/master)[![codecov](https://codecov.io/gh/symplely/hyper/branch/master/graph/badge.svg)](https://codecov.io/gh/symplely/hyper)[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d902c3aa05d74df699aa9e962e70f63d)](https://www.codacy.com/app/techno-express/hyper?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=symplely/hyper&amp;utm_campaign=Badge_Grade)[![Maintainability](https://api.codeclimate.com/v1/badges/db8ee4adb142ffad35c9/maintainability)](https://codeclimate.com/github/symplely/hyper/maintainability)
 
-A simple asynchronous PSR-18 HTTP client using coroutines.
+An simple advance asynchronous PSR-18 HTTP client using coroutines.
 
-**This package is under development, all `asynchronous` parts has not been fully implemented. The proper `async` way to make PSR-18 `request`/calls or handle `response`/results, not tested, nor added.**
+## Table of Contents
+
+* [Introduction/Usage](#introduction/usage)
+* [Functions](#functions)
+* [Installation](#installation)
+* [Usage/Historical](#usage/historical)
+* [Options](#options)
+* [Contributing](#contributing)
+* [License](#license)
+
+**This package is under development.**
+
+## Introduction/Usage
+
+## Functions
+
+```php
+const SYMPLELY_USER_AGENT = 'Symplely Hyper PHP/' . \PHP_VERSION;
+
+// Content types for header data.
+const TYPE_HTML = BodyInterface::HTML_TYPE;
+const TYPE_OCTET = BodyInterface::OCTET_TYPE;
+const TYPE_XML = BodyInterface::XML_TYPE;
+const TYPE_PLAIN = BodyInterface::PLAIN_TYPE;
+const TYPE_MULTI = BodyInterface::MULTI_TYPE;
+const TYPE_JSON = BodyInterface::JSON_TYPE;
+const TYPE_FORM = BodyInterface::FORM_TYPE;
+
+ /**
+ * This function works similar to coroutine `await()`
+ *
+ * Takes an `request` instance or `yield`ed coroutine of an request.
+ * Will immediately return an `int` HTTP task id, and continue to the next instruction.
+ * Will resolve to an Response instance when `fetch()`
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+ \request();
+
+ /**
+ * This function works similar to coroutine `gatherOptions()`
+ *
+ * Controls how the `fetch()` function operates.
+ * `fetch()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
+ */
+\fetchOptions($count, $exception, $clearAborted);
+
+/**
+ * This function works similar to coroutine `gather()`
+ *
+ * Takes an array of request HTTP task id's.
+ * Will pause current task and continue other tasks until
+ * the supplied request HTTP task id's resolve to an response instance.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\fetch(...$requests);
+
+/**
+ * This function works similar to `cancel_task()`
+ *
+ * Will abort the supplied request HTTP task id and close stream.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\request_abort($httpId);
+
+/**
+ * This function is automatically called by the http_* functions.
+ *
+ * Creates and returns an `Hyper` instance for the global HTTP functions by.
+ */
+\http_instance($tag);
+
+/**
+ * Clear & Close the global `Hyper`, and `Stream` Instances by.
+ */
+\http_clear($tag);
+
+/**
+ * Make a GET request, will pause current task, and
+ * continue other tasks until an response is received.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\http_get($tagUri, ...$authorizeHeaderOptions);
+
+/**
+ * Make a PUT request, will pause current task, and
+ * continue other tasks until an response is received.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\http_put($tagUri, ...$authorizeHeaderOptions);
+
+/**
+ * Make a POST request, will pause current task, and
+ * continue other tasks until an response is received.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\http_post($tagUri, ...$authorizeHeaderOptions);
+
+/**
+ * Make a PATCH request, will pause current task, and
+ * continue other tasks until an response is received.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\http_patch($tagUri, ...$authorizeHeaderOptions);
+
+/**
+ * Make a DELETE request, will pause current task, and
+ * continue other tasks until an response is received.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\http_delete($tagUri, ...$authorizeHeaderOptions);
+
+/**
+ * Make a OPTIONS request, will pause current task, and
+ * continue other tasks until an response is received.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\http_options($tagUri, ...$authorizeHeaderOptions);
+
+/**
+ * Make a HEAD request, will pause current task, and
+ * continue other tasks until an response is received.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\http_head($tagUri, ...$authorizeHeaderOptions);
+
+/**
+ * This function is automatically called by the http_* functions.
+ *
+ * Set global functions response instance by.
+ */
+\response_set($response, $tag);
+
+/**
+ * This function is automatically called by the response_* functions.
+ *
+ * Return current global functions response instance by.
+ */
+\response_instance($tag);
+
+/**
+ * Clear and close global functions response/stream instance by.
+ */
+\response_clear($tag);
+
+/**
+ * Is response from an successful request?
+ * Returns an `bool` or NULL, if not ready.
+ *
+ * This function can be used in an loop control statement,
+ * which you will `yield` on `NULL`.
+ */
+\response_ok($tag);
+
+/**
+ * Returns response reason phrase `string` or NULL, if not ready.
+ *
+ * This function can be used in an loop control statement,
+ * which you will `yield` on `NULL`.
+ */
+\response_phrase($tag);
+
+/**
+ * Returns response status code `int` or NULL, if not ready.
+ *
+ * This function can be used in an loop control statement,
+ * which you will `yield` on `NULL`.
+ */
+\response_code($tag);
+
+/**
+ * Check if response has header key by.
+ * Returns `bool` or NULL, if not ready.
+ *
+ * This function can be used in an loop control statement,
+ * which you will `yield` on `NULL`.
+ */
+\response_has($tag, $header;
+
+/**
+ * Retrieve a response value for header key by.
+ * Returns `string` or NULL, if not ready.
+ *
+ * This function can be used in an loop control statement,
+ * which you will `yield` on `NULL`.
+ */
+\response_header($tag, $header;
+
+/**
+ * returns response body.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\response_body($tag);
+
+/**
+ * returns response JSON body.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\response_json($tag, $assoc);
+
+/**
+ * returns response XML body.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+\response_xml($tag, $assoc);
+```
 
 ## Installation
 
@@ -12,7 +229,9 @@ A simple asynchronous PSR-18 HTTP client using coroutines.
 composer require symplely/hyper
 ```
 
-## Making requests: The easy old fashion way, with one caveat, need to be prefix with yield
+## Usage/Historical
+
+___Making requests: The easy old fashion way, with one caveat, need to be prefix with yield___
 
 The quickest and easiest way to begin making requests is to use the HTTP method name:
 
@@ -33,7 +252,7 @@ This library has built-in methods to support the major HTTP verbs: `GET`, `POST`
     $response = yield $http->sendRequest($request);
 ```
 
-## Handling responses
+___Handling responses___
 
 Responses in *Hyper* implement _PSR-7_ `ResponseInterface` and as such are streamable resources.
 
@@ -54,13 +273,13 @@ Responses in *Hyper* implement _PSR-7_ `ResponseInterface` and as such are strea
 \coroutine_run(\main());
 ```
 
-## Handling failed requests
+___Handling failed requests___
 
 This library will throw a `RequestException` by default if the request failed. This includes things like host name not found, connection timeouts, etc.
 
 Responses with HTTP 4xx or 5xx status codes *will not* throw an exception and must be handled properly within your business logic.
 
-## Making requests: The PSR-7 way, with one caveat, need to be prefix with yield
+___Making requests: The PSR-7 way, with one caveat, need to be prefix with yield___
 
 If code reusability and portability is your thing, future proof your code by making requests the PSR-7 way. Remember, PSR-7 stipulates that Request and Response messages be immutable.
 
@@ -91,7 +310,7 @@ function main() {
 \coroutine_run(\main());
 ```
 
-## Options
+### Options
 
 The following options can be pass on each request.
 
@@ -104,7 +323,7 @@ $http->request($method, $url, $body = null, array ...$authorizeHeaderOptions);
 * `Headers` An array of key & value pairs to pass in with each request.
 * `Options` An array of key & value pairs to pass in with each request.
 
-## Request bodies
+___Request bodies___
 
 An easy way to submit data with your request is to use the `Body` class. This class will automatically
 transform the data, convert to a **BufferStream**, and set a default **Content-Type** header on the request.
@@ -146,3 +365,11 @@ function main() {
 // The function `MUST` have at least one `yield` statement.
 \coroutine_run(\main());
 ```
+
+### Contributing
+
+Contributions are encouraged and welcome; I am always happy to get feedback or pull requests on Github :) Create [Github Issues](https://github.com/symplely/hyper/issues) for bugs and new features and comment on the ones you are interested in.
+
+### License
+
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.

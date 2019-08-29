@@ -189,6 +189,7 @@ if (!\function_exists('hyper')) {
 	/**
      * This function works similar to `gatherOptions()`.
 	 * Controls how the `fetch()` function operates.
+     * `fetch()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
 	 *
 	 * @param int $count - Will wait for count to complete, `0` (default) All.
 	 * @param bool $exception - If `true` (default), immediately propagated
@@ -207,6 +208,8 @@ if (!\function_exists('hyper')) {
 	/**
      * This function works similar to `gather()`.
      * Takes an array of request HTTP task id's.
+     * Will pause current task and continue other tasks until
+     * the supplied request HTTP task id's resolve to an response instance.
      *
      * @return array<ResponseInterface>
      * @throws \Exception - if not an HTTP task id
@@ -230,6 +233,7 @@ if (!\function_exists('hyper')) {
 	/**
      * This function works similar to `await()`
      * Will resolve to an Response instance when `fetch()`
+     * Will immediately return an `int`, and continue to the next instruction.
      *
      * @param ...$request either
      *
