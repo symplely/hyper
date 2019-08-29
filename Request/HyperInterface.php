@@ -52,7 +52,7 @@ interface HyperInterface extends RequestMethodInterface
      *
      * @throws \Exception - if not an HTTP task id
 	 */
-    public static function wait(array $httpId);
+    public static function wait(...$httpId);
 
 	/**
 	 * Create an new HTTP request background task

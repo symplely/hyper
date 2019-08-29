@@ -102,12 +102,13 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public static function wait(array $httpId)
+    public static function wait(...$httpId)
     {
         return new Kernel(
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
                 $httpList = [];
-				foreach($httpId as $value) {
+                $httpIdCount = \is_array($httpId[0]) ? $httpId[0] : $httpId;
+				foreach($httpIdCount as $value) {
                     if (\is_int($value)) {
                         $httpList[$value] = $value;
                     } else {
@@ -116,7 +117,8 @@ class Hyper implements HyperInterface
                 }
 
                 $responses = [];
-                $count = $initialCount = \count($httpId);
+                $httpIdCount = $httpList;
+                $count = $initialCount = \count($httpList);
                 $waitSet = (self::$waitCount > 0);
                 if ($waitSet) {
                     if ($initialCount < self::$waitCount) {
@@ -140,16 +142,18 @@ class Hyper implements HyperInterface
                             $waitCompleteCount++;
                             unset($httpList[$id]);
                             self::updateList($coroutine, $id, $completeList);
-                            if ($waitCompleteCount >= self::$waitCount)
+                            if ($waitCompleteCount == self::$waitCount)
                                 break;
                         }
                     }
                 }
 
                 if ($waitSet) {
-                    $subCount =  (self::$waitCount - $waitCompleteCount);
-                    if  (($waitCompleteCount >= self::$waitCount) || ($count >= self::$waitCount)) {
+                    $subCount = (self::$waitCount - $waitCompleteCount);
+                    if ($waitCompleteCount != self::$waitCount) {
                         $count = $subCount;
+                    } elseif ($waitCompleteCount == self::$waitCount) {
+                        $count = 0;
                     }
                 }
 
@@ -204,7 +208,7 @@ class Hyper implements HyperInterface
 
                 if ($waitSet && $waitAbortedCleared) {
                     $resultId = \array_keys($responses);
-                    $abortList = \array_diff($httpId, $resultId);
+                    $abortList = \array_diff($httpIdCount, $resultId);
                     $currentList = $coroutine->taskList();
                     $finishedList = $coroutine->completedList();
                     foreach($abortList as $requestId) {
@@ -260,7 +264,7 @@ class Hyper implements HyperInterface
 					$task->sendValue($coroutine->cancelTask($httpId));
 					$coroutine->schedule($task);
 				} else {
-					throw new \InvalidArgumentException('Invalid HTTP task ID!');
+					throw new \InvalidArgumentException(\BAD_ID);
 				}
 			}
 		);

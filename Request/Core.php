@@ -146,6 +146,7 @@ if (!\function_exists('hyper')) {
 
 	\define('BAD_CALL', "Invalid call on null, no `request` or `response` instance found!");
 	\define('BAD_ACCESS', "Invalid access, only HTTP `task` id allowed!");
+	\define('BAD_ID', "'Invalid HTTP task ID!'");
 
 	/**
      * Helper function, shouldn't be called directly.
@@ -218,16 +219,7 @@ if (!\function_exists('hyper')) {
 	 */
 	function fetch(...$requests)
 	{
-        $httpList = \is_array($requests[0]) ? $requests[0] : $requests;
-        foreach($httpList as $request) {
-            if (\is_int($request)) {
-                $http[] = $request;
-            } else {
-                \panic(\BAD_ACCESS);
-            }
-        }
-
-        return Hyper::wait($http);
+        return Hyper::wait(...$requests);
     }
 
 	/**
@@ -742,6 +734,43 @@ if (!\function_exists('hyper')) {
             \panic(\BAD_CALL);
 
         return $response->getBody()->getContents();
+    }
+
+    /**
+     * Response body been read completely.
+     *
+     *  `yield` on `NULL`, not ready yet.
+     *
+     * @param \ResponseInterface|mixed $tag
+     *
+     * @return bool
+     * @throws \Exception - if no response instance set
+	 */
+	function response_eof($tag = null)
+	{
+        if (($response = \response_instance($tag)) === null)
+            return null; // Not ready, yield on null.
+
+        return $response->getBody()->eof();
+    }
+
+    /**
+     * Response STREAM body.
+     *
+	 * - This function needs to be prefixed with `yield`
+     *
+     * @param \ResponseInterface|mixed $tag
+     * @param int $size
+     *
+     * @return mixed
+     * @throws \Exception - if no response instance set
+	 */
+	function response_stream($tag = null, $size = 8192)
+	{
+        if (($response = \response_instance($tag)) === null)
+            \panic(\BAD_CALL);
+
+        return $response->getBody()->read($size);
     }
 
     /**

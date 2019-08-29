@@ -24,13 +24,13 @@ An simple advance asynchronous PSR-18 HTTP client using coroutines.
 const SYMPLELY_USER_AGENT = 'Symplely Hyper PHP/' . \PHP_VERSION;
 
 // Content types for header data.
-const TYPE_HTML = BodyInterface::HTML_TYPE;
-const TYPE_OCTET = BodyInterface::OCTET_TYPE;
-const TYPE_XML = BodyInterface::XML_TYPE;
-const TYPE_PLAIN = BodyInterface::PLAIN_TYPE;
-const TYPE_MULTI = BodyInterface::MULTI_TYPE;
-const TYPE_JSON = BodyInterface::JSON_TYPE;
-const TYPE_FORM = BodyInterface::FORM_TYPE;
+const HTML_TYPE = 'text/html';
+const OCTET_TYPE = 'application/octet-stream';
+const XML_TYPE = 'application/xml';
+const PLAIN_TYPE = 'text/plain';
+const MULTI_TYPE = 'multipart/form-data';
+const JSON_TYPE = 'application/json';
+const FORM_TYPE = 'application/x-www-form-urlencoded';
 
  /**
  * This function works similar to coroutine `await()`
@@ -41,7 +41,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
- \request();
+yield  \request();
 
  /**
  * This function works similar to coroutine `gatherOptions()`
@@ -60,7 +60,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\fetch(...$requests);
+yield \fetch(...$requests);
 
 /**
  * This function works similar to `cancel_task()`
@@ -69,7 +69,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\request_abort($httpId);
+yield \request_abort($httpId);
 
 /**
  * This function is automatically called by the http_* functions.
@@ -84,12 +84,17 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
 \http_clear($tag);
 
 /**
+ * Clear & Close `ALL` - `Hyper`, and `StreamInterface` Instances.
+ */
+\http_clear_all();
+
+/**
  * Make a GET request, will pause current task, and
  * continue other tasks until an response is received.
  *
  * - This function needs to be prefixed with `yield`
  */
-\http_get($tagUri, ...$authorizeHeaderOptions);
+yield \http_get($tagUri, ...$authorizeHeaderOptions);
 
 /**
  * Make a PUT request, will pause current task, and
@@ -97,7 +102,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\http_put($tagUri, ...$authorizeHeaderOptions);
+yield \http_put($tagUri, ...$authorizeHeaderOptions);
 
 /**
  * Make a POST request, will pause current task, and
@@ -105,7 +110,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\http_post($tagUri, ...$authorizeHeaderOptions);
+yield \http_post($tagUri, ...$authorizeHeaderOptions);
 
 /**
  * Make a PATCH request, will pause current task, and
@@ -113,7 +118,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\http_patch($tagUri, ...$authorizeHeaderOptions);
+yield \http_patch($tagUri, ...$authorizeHeaderOptions);
 
 /**
  * Make a DELETE request, will pause current task, and
@@ -121,7 +126,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\http_delete($tagUri, ...$authorizeHeaderOptions);
+yield \http_delete($tagUri, ...$authorizeHeaderOptions);
 
 /**
  * Make a OPTIONS request, will pause current task, and
@@ -129,7 +134,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\http_options($tagUri, ...$authorizeHeaderOptions);
+yield \http_options($tagUri, ...$authorizeHeaderOptions);
 
 /**
  * Make a HEAD request, will pause current task, and
@@ -137,7 +142,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  *
  * - This function needs to be prefixed with `yield`
  */
-\http_head($tagUri, ...$authorizeHeaderOptions);
+yield \http_head($tagUri, ...$authorizeHeaderOptions);
 
 /**
  * This function is automatically called by the http_* functions.
@@ -157,6 +162,11 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  * Clear and close global functions response/stream instance by.
  */
 \response_clear($tag);
+
+/**
+ * Clear and close `ALL` global functions response key instances.
+ */
+\response_clear_all();
 
 /**
  * Is response from an successful request?
@@ -190,7 +200,7 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  * This function can be used in an loop control statement,
  * which you will `yield` on `NULL`.
  */
-\response_has($tag, $header;
+\response_has($tag, $header);
 
 /**
  * Retrieve a response value for header key by.
@@ -199,28 +209,44 @@ const TYPE_FORM = BodyInterface::FORM_TYPE;
  * This function can be used in an loop control statement,
  * which you will `yield` on `NULL`.
  */
-\response_header($tag, $header;
+\response_header($tag, $header);
 
 /**
- * returns response body.
+ * returns response FULL body.
  *
  * - This function needs to be prefixed with `yield`
  */
-\response_body($tag);
+yield \response_body($tag);
+
+/**
+ * Check if response body been read completely by.
+ * Returns `bool` or NULL, if not ready.
+ *
+ * This function can be used in an loop control statement,
+ * which you will `yield` on `NULL`.
+ */
+\response_eof($tag);
+
+/**
+ * returns response STREAM body.
+ *
+ * - This function needs to be prefixed with `yield`
+ */
+yield \response_stream($tag, $size);
 
 /**
  * returns response JSON body.
  *
  * - This function needs to be prefixed with `yield`
  */
-\response_json($tag, $assoc);
+yield \response_json($tag, $assoc);
 
 /**
  * returns response XML body.
  *
  * - This function needs to be prefixed with `yield`
  */
-\response_xml($tag, $assoc);
+yield \response_xml($tag, $assoc);
 ```
 
 ## Installation

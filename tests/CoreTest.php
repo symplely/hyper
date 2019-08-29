@@ -7,6 +7,7 @@ namespace Async\Tests;
 use Async\Request\Body;
 use Async\Request\Response;
 use Async\Request\Request;
+use Async\Coroutine\Exceptions\PanicInterface;
 use Async\Request\Exception\RequestException;
 use PHPUnit\Framework\TestCase;
 
@@ -17,7 +18,7 @@ class CoreTest extends TestCase
 
     protected $websites = [
         'http://google.com/',
-        'http://blogspot.com/',
+       // 'http://blogspot.com/',
         'http://creativecommons.org/',
         'http://microsoft.com/',
         'http://dell.com/',
@@ -36,7 +37,7 @@ class CoreTest extends TestCase
         foreach($websites as $website) {
             $tasks[] = yield \request(\http_head($website));
         }
-        $this->assertCount(6, $tasks);
+        $this->assertCount(5, $tasks);
 
         \fetchOptions(3);
         $responses = yield \fetch($tasks);
@@ -98,6 +99,10 @@ class CoreTest extends TestCase
             $this->assertNotNull(\response_body($urlInstance));
             \response_clear($urlInstance);
         }, $responses);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage(\BAD_ID);
+        yield \request_abort(999999);
     }
 
     public function testRequestGet()
@@ -161,6 +166,11 @@ class CoreTest extends TestCase
         $responses = yield \fetch($pipedream, $httpBin, $bad);
         $this->assertCount(2, $responses);
 
+        while (!\response_eof('bin')) {
+            $echo = yield \response_stream('bin');
+            $this->assertNotNull($echo);
+        }
+
         \http_clear_all();
         \response_clear_all();
     }
@@ -185,6 +195,21 @@ class CoreTest extends TestCase
     public function testFetchFail()
     {
         \coroutine_run($this->taskFetchFail());
+    }
+
+    public function taskFetchFailInt()
+    {
+        $pipedream = yield \request('pine', \http_post('pine', self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
+        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
+        $bad = 'yield \request((new Request(Request::METHOD_OPTIONS, self::TARGET_URL)));';
+
+		$this->expectException(PanicInterface::class);
+        $responses = yield \fetch($pipedream, $httpBin, $bad);
+    }
+
+    public function testFetchFailInt()
+    {
+        \coroutine_run($this->taskFetchFailInt());
     }
 
     public function taskRequestPut()
