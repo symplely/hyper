@@ -774,6 +774,23 @@ if (!\function_exists('hyper')) {
     }
 
     /**
+     * Response STREAM metadata by key.
+     *
+     * @param \ResponseInterface|mixed $tag
+     * @param string $key
+     *
+     * @return string|array
+     * @throws \Exception - if no response instance set
+	 */
+	function response_meta($tag = null, $key = null)
+	{
+        if (($response = \response_instance($tag)) === null)
+            \panic(\BAD_CALL);
+
+        return $response->getBody()->getMetadata($key);
+    }
+
+    /**
      * Response JSON body.
      *
 	 * - This function needs to be prefixed with `yield`

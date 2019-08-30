@@ -228,6 +228,11 @@ yield \http_head($tagUri, ...$authorizeHeaderOptions);
 yield \response_body($tag);
 
 /**
+ * Returns `string` of response metadata by key.
+ */
+\response_meta($tag, $key);
+
+/**
  * Check if response body been read completely by.
  * Returns `bool` or NULL, if not ready.
  *
