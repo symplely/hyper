@@ -29,7 +29,7 @@ class AsyncStream implements StreamInterface
      *
      * @var resource|null
      */
-    protected $resource;
+    private $resource;
 
 	/**
 	 * @var bool
@@ -55,6 +55,8 @@ class AsyncStream implements StreamInterface
 	 * @var int|null
 	 */
     private $size;
+
+    private $httpId;
 
     protected static $nonBlocking = [];
 
@@ -105,6 +107,13 @@ class AsyncStream implements StreamInterface
         }
 
         $this->resource = $resource;
+    }
+
+	public function hyperId(int $httpId = null)
+	{
+        $this->httpId = $httpId;
+
+        return $this;
     }
 
     /**
@@ -278,11 +287,15 @@ class AsyncStream implements StreamInterface
      */
     public function getContents()
     {
+        //yield;
         $handle = $this->getResource();
 
         if ($this->readable && ($handle !== null)) {
-			yield Kernel::readWait($handle);
-			$buffer = \stream_get_contents($handle);
+			$buffer = "";
+			while (!\feof($handle)) {
+				yield Kernel::readWait($handle);
+				$buffer .= \stream_get_contents($handle, 1024);
+			}
 
             if (false !== $buffer) {
                 return $buffer;

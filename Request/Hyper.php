@@ -87,6 +87,8 @@ class Hyper implements HyperInterface
 	public function hyperId(int $httpId)
 	{
         $this->httpId = $httpId;
+
+        return $this;
     }
 
     /**
@@ -235,9 +237,8 @@ class Hyper implements HyperInterface
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpFunction, $hyper) {
                 $httpId = $coroutine->createTask($httpFunction);
                 $taskList = $coroutine->taskList();
-                $hyper->hyperId($httpId);
 				$taskList[$httpId]->customState('beginning');
-                $taskList[$httpId]->customData($hyper);
+                $taskList[$httpId]->customData($hyper->hyperId($httpId));
                 $task->sendValue($httpId);
 				$coroutine->schedule($task);
 			}
@@ -524,7 +525,7 @@ class Hyper implements HyperInterface
             $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
             yield;
             $stream = AsyncStream::createFromResource($resource);
-            $this->stream = $stream;
+            $this->stream = $stream->hyperId($this->httpId);
 
             if ($option['follow_location']) {
                 $headers = $this->filterResponseHeaders($headers);
