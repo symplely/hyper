@@ -1,7 +1,7 @@
 {
     "name": "symplely/hyper",
-    "description": "An asynchronous PSR-7 and PSR-18 Http client using coroutines.",
-	"keywords": ["coroutine", "yield", "http", "request", "client", "generator", "http", "PSR-7", "PSR-18", "message", "async"],
+    "description": "An simple advance asynchronous PSR-7 and PSR-18 Http client using coroutines.",
+	"keywords": ["coroutine", "yield", "http", "request", "client", "generator", "PSR-7", "PSR-18", "message", "async", "await"],
     "homepage": "https://github.com/symplely/hyper",
     "type": "library",
     "license": "MIT",
@@ -13,8 +13,9 @@
     ],
     "require": {
         "php": ">7.1",
+        "psr/log": "^1.0",
         "symplely/http": "^1.0.3",
-        "symplely/coroutine": "^1.1.7"
+        "symplely/coroutine": "^1.1.8"
     },
     "autoload": {
         "files": [
