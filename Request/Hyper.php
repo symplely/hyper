@@ -522,8 +522,8 @@ class Hyper implements HyperInterface
                 return [$e, $httpId];
             }
         } else {
-            $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
             yield;
+            $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
             $stream = AsyncStream::createFromResource($resource);
             $this->stream = $stream->hyperId($this->httpId);
 

@@ -6,6 +6,8 @@ namespace Async\Request;
 
 use Async\Coroutine\Kernel;
 use Psr\Http\Message\StreamInterface;
+use Async\Coroutine\Coroutine;
+use Async\Coroutine\TaskInterface;
 
 /**
  * Class AsyncStream
@@ -114,6 +116,11 @@ class AsyncStream implements StreamInterface
         $this->httpId = $httpId;
 
         return $this;
+    }
+
+	public function getHyperId(): ?int
+	{
+        return $this->httpId;
     }
 
     /**
@@ -282,29 +289,61 @@ class AsyncStream implements StreamInterface
         return true;
     }
 
+	public static function fetchContents(StreamInterface $stream)
+	{
+		return new Kernel(
+			function(TaskInterface $task, Coroutine $coroutine) use ($stream) {
+                $handle =  $stream->getResource();
+                if ($stream->isReadable() && ($handle !== null)) {
+                    if (!\feof($handle)) {
+                        $coroutine->addReader($handle, $task);
+                        $buffer = \stream_get_contents($handle);
+                        if (false !== $buffer) {
+                            $task->sendValue($buffer);
+                            $coroutine->schedule($task);
+                        } else {
+                            throw new \RuntimeException('Unable to get contents from underlying resource');
+                        }
+                    }
+                } else {
+                    throw new \RuntimeException('Underlying resource is not readable');
+                }
+			}
+		);
+    }
+
+	public static function fetchRead(StreamInterface $stream, int $length)
+	{
+		return new Kernel(
+			function(TaskInterface $task, Coroutine $coroutine) use ($stream, $length) {
+                $handle =  $stream->getResource();
+				$coroutine->addReader($handle, $task);
+				$buffer = \fread($handle, $length);
+                $task->sendValue($buffer);
+				$coroutine->schedule($task);
+			}
+		);
+    }
+
+	public static function fetchWrite(StreamInterface $stream, $string)
+	{
+		return new Kernel(
+			function(TaskInterface $task, Coroutine $coroutine) use ($stream, $string) {
+                $handle =  $stream->getResource();
+				$coroutine->addWriter($handle, $task);
+				$written = \fwrite($handle, $string);
+                $task->sendValue($written);
+				$coroutine->schedule($task);
+			}
+		);
+    }
+
     /**
      * {@inheritdoc}
      */
     public function getContents()
     {
-        //yield;
-        $handle = $this->getResource();
-
-        if ($this->readable && ($handle !== null)) {
-			$buffer = "";
-			while (!\feof($handle)) {
-				yield Kernel::readWait($handle);
-				$buffer .= \stream_get_contents($handle, 1024);
-			}
-
-            if (false !== $buffer) {
-                return $buffer;
-            }
-
-            throw new \RuntimeException('Unable to get contents from underlying resource');
-        }
-
-        throw new \RuntimeException('Underlying resource is not readable');
+        return self::fetchContents($this);
     }
 
     /**

@@ -719,7 +719,7 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * Response body.
+     * Response full body.
      *
 	 * - This function needs to be prefixed with `yield`
      *
@@ -737,7 +737,7 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * Response body been read completely.
+     * Has response body been read completely?
      *
      *  `yield` on `NULL`, not ready yet.
      *

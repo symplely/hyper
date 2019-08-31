@@ -96,7 +96,7 @@ class CoreTest extends TestCase
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
             $ok = \response_phrase($urlInstance);
             $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-            $this->assertNotNull(\response_body($urlInstance));
+            $this->assertNotNull(yield \response_body($urlInstance));
             \response_clear($urlInstance);
         }, $responses);
 
@@ -125,7 +125,7 @@ class CoreTest extends TestCase
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
             $ok = \response_phrase($urlInstance);
             $this->assertEquals(Response::REASON_PHRASES[200], $ok);
-            $this->assertNotNull(\response_body($urlInstance));
+            $this->assertNotNull(yield \response_body($urlInstance));
             \response_clear($urlInstance);
         };
 
@@ -285,21 +285,16 @@ class CoreTest extends TestCase
         yield \request('pipe', \http_delete('pipe', self::TARGET_URL, Body::create(Body::JSON, $data)));
 
         while (true) {
-            if (\response_phrase() === null) {
+            if (\response_phrase('pipe') === null) {
                 yield;
             } else {
                 break;
             }
         }
 
-        $this->assertTrue(\response_ok());
-        $this->assertEquals(Response::STATUS_OK, \response_code());
-        $this->assertSame("XT3837", (yield \response_json())->form->{'key'});
-        \response_clear();
-
         $this->assertSame(true, (yield \response_json('pipe'))->success);
+        $this->assertEquals(Response::STATUS_OK, \response_code('pipe'));
         \http_clear('pipe');
-        \http_clear();
     }
 
     public function testRequestDelete()
