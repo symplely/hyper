@@ -1,14 +1,10 @@
 <?php
 
-use Amp\Http\Client\Client;
-use Amp\Http\Client\HttpException;
-use Amp\Http\Client\Request;
-use Amp\Http\Client\Response;
-use Amp\Loop;
+include 'vendor/autoload.php';
 
-require __DIR__ . '/../vendor/autoload.php';
+use Async\Coroutine\Exceptions\Panicking;
 
-Loop::run(static function () {
+function main() {
     $uris = [
         "https://newlifecoffee.com/",
         "https://newlifecoffee.com/coffee",
@@ -37,9 +33,11 @@ Loop::run(static function () {
         foreach ($bodies as $uri => $body) {
             print $uri . " - " . \strlen($body) . " bytes" . PHP_EOL;
         }
-    } catch (HttpException $error) {
+    } catch (Panicking $error) {
         // If something goes wrong Amp will throw the exception where the promise was yielded.
         // The Client::request() method itself will never throw directly, but returns a promise.
         echo $error;
     }
-});
+}
+
+\coroutine_run(\main());

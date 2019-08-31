@@ -4,6 +4,8 @@
  */
 include 'vendor/autoload.php';
 
+use Async\Coroutine\Exceptions\Panicking;
+
 function requestHandler(string $uri) {
     $contents = yield \get_file($uri);
     return [$uri, $contents];
@@ -28,7 +30,7 @@ function main() {
             [$uri, $body] = $result;
             print "Task $id: ". $uri . " - " . \strlen($body) . " bytes" . \EOL;
         }
-    } catch (\Exception $error) {
+    } catch (Panicking $error) {
         // If something goes wrong Amp will throw the exception where the promise was yielded.
         // The Client::request() method itself will never throw directly, but returns a promise.
         echo 'There was a problem: '.$error->getMessage();

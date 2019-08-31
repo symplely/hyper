@@ -1,21 +1,14 @@
 <?php
 
-use Amp\Http\Client\Client;
-use Amp\Http\Client\HttpException;
-use Amp\Http\Client\Request;
-use Amp\Http\Client\Response;
-use Amp\Loop;
+include 'vendor/autoload.php';
 
-require __DIR__ . '/../vendor/autoload.php';
+use Async\Coroutine\Exceptions\Panicking;
 
-Loop::run(static function () {
+function main() {
     try {
-        // Instantiate the HTTP client
-        $client = new Client;
-
         // Here we create a custom request object instead of simply passing an URL to request().
         $request = new Request('https://httpbin.org/headers');
-        $request->setHeader('X-Hello-World', 'Awesome \o/');
+        $request->
 
         // Make an asynchronous HTTP request
         $promise = $client->request($request);
@@ -46,9 +39,11 @@ Loop::run(static function () {
         // The response body is an instance of Payload, which allows buffering or streaming by the consumers choice.
         $body = yield $response->getBody()->buffer();
         print $body . "\n";
-    } catch (HttpException $error) {
+    } catch (Panicking $error) {
         // If something goes wrong Amp will throw the exception where the promise was yielded.
         // The Client::request() method itself will never throw directly, but returns a promise.
         echo $error;
     }
-});
+}
+
+\coroutine_run(\main());

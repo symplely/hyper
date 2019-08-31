@@ -4,7 +4,7 @@
  */
 include 'vendor/autoload.php';
 
-use Async\Coroutine\Exceptions\PanicInterface;
+use Async\Coroutine\Exceptions\Panicking;
 
 function main() {
     $uris = [
@@ -34,7 +34,7 @@ function main() {
             $body = yield \response_body($result);
             print "HTTP Task $id: ". $uri. " - " . \strlen($body) . " bytes" . \EOL;
         }
-    } catch (PanicInterface $error) {
+    } catch (Panicking $error) {
         echo 'There was a problem: '.$error->getMessage();
     }
 }

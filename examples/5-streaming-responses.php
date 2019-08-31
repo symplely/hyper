@@ -1,14 +1,9 @@
 <?php
 
-use Amp\File\Handle;
-use Amp\File\StatCache;
-use Amp\Http\Client\Client;
-use Amp\Http\Client\HttpException;
-use Amp\Http\Client\Request;
-use Amp\Http\Client\Response;
-use Amp\Loop;
+include 'vendor/autoload.php';
 
-require __DIR__ . '/../vendor/autoload.php';
+use Async\Coroutine\Exceptions\Panicking;
+
 
 // https://stackoverflow.com/a/2510540/2373138
 function formatBytes(int $size, int $precision = 2)
@@ -19,7 +14,7 @@ function formatBytes(int $size, int $precision = 2)
     return \round(1024 ** ($base - \floor($base)), $precision) . ' ' . $suffixes[(int) $base];
 }
 
-Loop::run(static function () {
+function main() {
     try {
         $start = \microtime(1);
 
@@ -86,9 +81,11 @@ Loop::run(static function () {
         $size = yield Amp\File\size($path);
 
         print \sprintf("%s has a size of %.2fMB\n", $path, (float) $size / 1024 / 1024);
-    } catch (HttpException $error) {
+    } catch (Panicking $error) {
         // If something goes wrong Amp will throw the exception where the promise was yielded.
         // The Client::request() method itself will never throw directly, but returns a promise.
         echo $error;
     }
-});
+}
+
+\coroutine_run(\main());

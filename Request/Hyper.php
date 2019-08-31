@@ -51,7 +51,7 @@ class Hyper implements HyperInterface
         'request_fulluri' => false,
         'max_redirects' => 10,
         'ignore_errors' => true,
-        'timeout' => 10,
+        'timeout' => 1,
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 

@@ -7,7 +7,7 @@ namespace Async\Tests;
 use Async\Request\Body;
 use Async\Request\Response;
 use Async\Request\Request;
-use Async\Coroutine\Exceptions\PanicInterface;
+use Async\Coroutine\Exceptions\Panicking;
 use Async\Request\Exception\RequestException;
 use PHPUnit\Framework\TestCase;
 
@@ -203,7 +203,7 @@ class CoreTest extends TestCase
         $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
         $bad = 'yield \request((new Request(Request::METHOD_OPTIONS, self::TARGET_URL)));';
 
-		$this->expectException(PanicInterface::class);
+		$this->expectException(Panicking::class);
         $responses = yield \fetch($pipedream, $httpBin, $bad);
     }
 

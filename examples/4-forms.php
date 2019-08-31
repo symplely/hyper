@@ -1,15 +1,10 @@
 <?php
 
-use Amp\Http\Client\Body\FormBody;
-use Amp\Http\Client\Client;
-use Amp\Http\Client\HttpException;
-use Amp\Http\Client\Request;
-use Amp\Http\Client\Response;
-use Amp\Loop;
+include 'vendor/autoload.php';
 
-require __DIR__ . '/../vendor/autoload.php';
+use Async\Coroutine\Exceptions\Panicking;
 
-Loop::run(static function () {
+function main() {
     try {
         // Instantiate the HTTP client
         $client = new Client;
@@ -45,9 +40,11 @@ Loop::run(static function () {
         // The response body is an instance of Payload, which allows buffering or streaming by the consumers choice.
         $body = yield $response->getBody()->buffer();
         print $body . "\n";
-    } catch (HttpException $error) {
+    } catch (Panicking $error) {
         // If something goes wrong Amp will throw the exception where the promise was yielded.
         // The Client::request() method itself will never throw directly, but returns a promise.
         echo $error;
     }
-});
+}
+
+\coroutine_run(\main());

@@ -317,10 +317,27 @@ class AsyncStream implements StreamInterface
 		return new Kernel(
 			function(TaskInterface $task, Coroutine $coroutine) use ($stream, $length) {
                 $handle =  $stream->getResource();
-				$coroutine->addReader($handle, $task);
-				$buffer = \fread($handle, $length);
-                $task->sendValue($buffer);
-				$coroutine->schedule($task);
+                if (!$stream->isReadable() || ($handle === null)) {
+                    throw new \RuntimeException('Stream is not readable');
+                }
+
+                if($length < 0) {
+                    throw new \RuntimeException('Length parameter cannot be negative');
+                }
+
+                if ($length === 0) {
+                    $task->sendValue('');
+                    $coroutine->schedule($task);
+                } else {
+                    $coroutine->addReader($handle, $task);
+                    $contents = \fread($handle, $length);
+                    if (false !== $contents) {
+                        $task->sendValue($contents);
+                        $coroutine->schedule($task);
+                    } else {
+                        throw new \RuntimeException('Unable to read from underlying resource');
+                    }
+                }
 			}
 		);
     }
@@ -330,10 +347,18 @@ class AsyncStream implements StreamInterface
 		return new Kernel(
 			function(TaskInterface $task, Coroutine $coroutine) use ($stream, $string) {
                 $handle =  $stream->getResource();
+                if (!$stream->isWritable() || ($handle === null)) {
+                    throw new \RuntimeException('Stream is not writable');
+                }
+
 				$coroutine->addWriter($handle, $task);
 				$written = \fwrite($handle, $string);
-                $task->sendValue($written);
-				$coroutine->schedule($task);
+                if (false !== $written) {
+                    $task->sendValue($written);
+				    $coroutine->schedule($task);
+                } else {
+                    throw new \RuntimeException('Unable to write to underlying resource');
+                }
 			}
 		);
     }
@@ -344,6 +369,24 @@ class AsyncStream implements StreamInterface
     public function getContents()
     {
         return self::fetchContents($this);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function read($length)
+    {
+        return self::fetchRead($this, $length);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write($string)
+    {
+        // We can't know the size after writing anything
+        $this->size = null;
+        return self::fetchWrite($this, $string);
     }
 
     /**
@@ -388,35 +431,6 @@ class AsyncStream implements StreamInterface
     /**
      * {@inheritdoc}
      */
-    public function read($length)
-    {
-        $handle = $this->getResource();
-
-        if (!$this->readable || ($handle === null)) {
-            throw new \RuntimeException('Stream is not readable');
-        }
-
-		if($length < 0) {
-			throw new \RuntimeException('Length parameter cannot be negative');
-        }
-
-		if($length === 0){
-			return '';
-        }
-
-        yield Kernel::readWait($handle);
-        $contents = \fread($handle, $length);
-
-        if (false !== $contents) {
-            return $contents;
-        }
-
-        throw new \RuntimeException('Unable to read from underlying resource');
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function isWritable($stream = null)
     {
         $handle = $this->getResource();
@@ -432,29 +446,6 @@ class AsyncStream implements StreamInterface
 
         $mode = \str_replace(['b', 'e'], '', $mode);
         return \in_array($mode, self::WRITABLE_MODES, true);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function write($string)
-    {
-        $handle = $this->getResource();
-
-        if (!$this->writable || ($handle === null)) {
-            throw new \RuntimeException('Stream is not writable');
-        }
-
-		// We can't know the size after writing anything
-        $this->size = null;
-
-        yield Kernel::writeWait($handle);
-        $result = \fwrite($handle, $string);
-        if (false !== $result) {
-            return $result;
-        }
-
-        throw new \RuntimeException('Unable to write to underlying resource');
     }
 
     public function getResource()
