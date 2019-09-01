@@ -523,8 +523,8 @@ class Hyper implements HyperInterface
             }
         } else {
             yield;
-            $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
             $stream = AsyncStream::createFromResource($resource);
+            $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
             $this->stream = $stream->hyperId($this->httpId);
 
             if ($option['follow_location']) {

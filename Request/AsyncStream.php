@@ -270,6 +270,7 @@ class AsyncStream implements StreamInterface
 		$this->readable = false;
 		$this->writable = false;
 		$this->seekable = false;
+        $this->httpId = null;
         self::$nonBlocking = [];
 
         return $resource;
@@ -295,15 +296,17 @@ class AsyncStream implements StreamInterface
 			function(TaskInterface $task, Coroutine $coroutine) use ($stream) {
                 $handle =  $stream->getResource();
                 if ($stream->isReadable() && ($handle !== null)) {
-                    if (!\feof($handle)) {
+                    $buffer = "";
+                    while (!\feof($handle)) {
                         $coroutine->addReader($handle, $task);
-                        $buffer = \stream_get_contents($handle);
-                        if (false !== $buffer) {
-                            $task->sendValue($buffer);
-                            $coroutine->schedule($task);
-                        } else {
-                            throw new \RuntimeException('Unable to get contents from underlying resource');
-                        }
+                        $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
+                    }
+
+                    if (false !== $buffer) {
+                        $task->sendValue($buffer);
+                        $coroutine->schedule($task);
+                    } else {
+                        throw new \RuntimeException('Unable to get contents from underlying resource');
                     }
                 } else {
                     throw new \RuntimeException('Underlying resource is not readable');

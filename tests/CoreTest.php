@@ -18,7 +18,7 @@ class CoreTest extends TestCase
 
     protected $websites = [
         'http://google.com/',
-       // 'http://blogspot.com/',
+        'http://blogspot.com/',
         'http://creativecommons.org/',
         'http://microsoft.com/',
         'http://dell.com/',
@@ -37,7 +37,7 @@ class CoreTest extends TestCase
         foreach($websites as $website) {
             $tasks[] = yield \request(\http_head($website));
         }
-        $this->assertCount(5, $tasks);
+        $this->assertCount(6, $tasks);
 
         \fetchOptions(3);
         $responses = yield \fetch($tasks);
