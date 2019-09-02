@@ -128,7 +128,7 @@ class HyperTest extends TestCase
         $response = yield $this->http->get(self::TARGET_URLS.'get',
             [],
             ['X-Added-Header' => 'Symplely!', 'X-Http-Client' => 'Hyper'],
-            ['timeout' => 5]
+            ['timeout' => 10]
         );
         $json = yield \response_json($response);
 
@@ -146,7 +146,9 @@ class HyperTest extends TestCase
 	public function taskSendRequest()
 	{
         $url = self::TARGET_URLS.'get';
-        $response = yield $this->http->sendRequest(new Request(Request::METHOD_GET, $url));
+        $response = yield $this->http->sendRequest(
+            (new Request(Request::METHOD_GET, $url))->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT])
+        );
         $json = yield \response_json($response);
 
         $this->assertSame($url, $json->url);
@@ -166,7 +168,7 @@ class HyperTest extends TestCase
             $this->http->request(Request::METHOD_GET,
             self::TARGET_URLS.'bearer',
             null,
-            ['auth_bearer' => '2323@#$@'])
+            ['auth_bearer' => '2323@#$@'])->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT])
         );
 
         $json = yield \response_json($response);
@@ -185,7 +187,9 @@ class HyperTest extends TestCase
     {
 		$this->expectException(ClientExceptionInterface::class);
 
-		yield $this->http->sendRequest((new Request(Request::METHOD_GET, 'http://foo'))->debugOff());
+		yield $this->http->sendRequest(
+            (new Request(Request::METHOD_GET, 'http://foo'))->debugOff()->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT])
+        );
     }
 
     public function testNetworkError()
@@ -197,7 +201,9 @@ class HyperTest extends TestCase
     {
 		$this->expectException(RequestExceptionInterface::class);
 
-		yield $this->http->sendRequest((new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4'));
+		yield $this->http->sendRequest(
+            (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
+        );
     }
 
     public function testRequestError()

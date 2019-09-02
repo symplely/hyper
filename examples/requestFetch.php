@@ -8,9 +8,10 @@ use Async\Coroutine\Exceptions\Panicking;
 
 function main() {
     $uris = [
-        "https://google.com/",
         "https://github.com/",
-        "https://stackoverflow.com/"
+        "https://google.com/",
+        "https://stackoverflow.com/",
+        'http://creativecommons.org/'
     ];
 
     try {

@@ -21,8 +21,8 @@ class CoreTest extends TestCase
         'http://blogspot.com/',
         'http://creativecommons.org/',
         'http://microsoft.com/',
-        'http://dell.com/',
-        'http://nytimes.com/'
+        'https://dell.com/',
+        'https://nytimes.com/'
     ];
 
 	protected function setUp(): void
@@ -37,7 +37,7 @@ class CoreTest extends TestCase
         foreach($websites as $website) {
             $tasks[] = yield \request(\http_head($website));
         }
-        $this->assertCount(6, $tasks);
+        $this->assertCount(\count($this->websites), $tasks);
 
         \fetchOptions(3);
         $responses = yield \fetch($tasks);
@@ -86,7 +86,7 @@ class CoreTest extends TestCase
     {
         $pipedream = yield \request(new Request(Request::METHOD_GET, self::TARGET_URL));
         $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS.'get']);
-        $times = yield \request(\http_get('http://nytimes.com'));
+        $times = yield \request(\http_get('https://nytimes.com'));
 
         $responses = yield \fetch($pipedream, $httpBin, $times);
         $this->assertCount(3, $responses);

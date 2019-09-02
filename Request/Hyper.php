@@ -39,6 +39,7 @@ class Hyper implements HyperInterface
             'Accept-Charset' => 'utf-8',
             'Accept-Language' => 'en-US,en;q=0.9',
             'X-Powered-By' => 'PHP/' . \PHP_VERSION,
+            'Connection' => 'close'
         ]
     ];
 
@@ -51,7 +52,7 @@ class Hyper implements HyperInterface
         'request_fulluri' => false,
         'max_redirects' => 10,
         'ignore_errors' => true,
-        'timeout' => 1,
+        'timeout' => \REQUEST_TIMEOUT,
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 
@@ -108,7 +109,13 @@ class Hyper implements HyperInterface
     {
         return new Kernel(
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
+                $waitCount = self::$waitCount;
+                $waitShouldError = self::$waitShouldError;
+                $waitAbortedCleared = self::$waitAbortedCleared;
+                self::waitOptions();
+
                 $httpList = [];
+                $responses = [];
                 $httpIdCount = \is_array($httpId[0]) ? $httpId[0] : $httpId;
 				foreach($httpIdCount as $value) {
                     if (\is_int($value)) {
@@ -118,15 +125,12 @@ class Hyper implements HyperInterface
                     }
                 }
 
-                $responses = [];
                 $httpIdCount = $httpList;
-                $count = $initialCount = \count($httpList);
-                $waitSet = (self::$waitCount > 0);
+                $count = \count($httpList);
+                $waitSet = ($waitCount > 0);
                 if ($waitSet) {
-                    if ($initialCount < self::$waitCount) {
-                        $count = self::$waitCount;
-                        self::waitOptions();
-                        throw new \LengthException(\sprintf('The (%d) HTTP tasks, not enough to fulfill the `waitOptions(%d)` request count!', $initialCount, $count));
+                    if ($count < $waitCount) {
+                        throw new \LengthException(\sprintf('The (%d) HTTP tasks, not enough to fulfill the `waitOptions(%d)` request count!', $count, $waitCount));
                     }
                 }
 
@@ -144,24 +148,20 @@ class Hyper implements HyperInterface
                             $waitCompleteCount++;
                             unset($httpList[$id]);
                             self::updateList($coroutine, $id, $completeList);
-                            if ($waitCompleteCount == self::$waitCount)
+                            if ($waitCompleteCount == $waitCount)
                                 break;
                         }
                     }
                 }
 
                 if ($waitSet) {
-                    $subCount = (self::$waitCount - $waitCompleteCount);
-                    if ($waitCompleteCount != self::$waitCount) {
+                    $subCount = ($waitCount - $waitCompleteCount);
+                    if ($waitCompleteCount != $waitCount) {
                         $count = $subCount;
-                    } elseif ($waitCompleteCount == self::$waitCount) {
+                    } elseif ($waitCompleteCount == $waitCount) {
                         $count = 0;
                     }
                 }
-
-                $waitShouldError = self::$waitShouldError;
-                $waitAbortedCleared = self::$waitAbortedCleared;
-                self::waitOptions();
                 while ($count > 0) {
                     foreach($httpList as $id) {
                         if (isset($taskList[$id])) {
@@ -170,12 +170,19 @@ class Hyper implements HyperInterface
                                 && ($tasks->pending() || $tasks->rescheduled())
                             ) {
                                 $tasks->customState('started');
-                                $coroutine->runCoroutines();
+                                try {
+                                    $coroutine->runCoroutines();
+                                } catch(\Throwable $error) {
+                                    $tasks->setState('erred');
+                                    $tasks->setException($error);
+                                    $coroutine->schedule($tasks);
+                                    $coroutine->runCoroutines();
+                                }
                             } elseif ($tasks->completed()) {
                                 $tasks->customState('ended');
                                 $tasks->getCustomData()->getHyper();
                                 $result = $tasks->result();
-                                if (is_array($result)
+                                if (\is_array($result)
                                     && (isset($result[0]) && $result[0] instanceof \Throwable)
                                 ) {
                                     $exception = $result[0];
@@ -193,6 +200,11 @@ class Hyper implements HyperInterface
                                     $count--;
                                     unset($taskList[$id]);
                                     self::updateList($coroutine, $id);
+                                    if ($waitSet) {
+                                        $subCount--;
+                                        if ($subCount == 0)
+                                            break;
+                                    }
                                 }
                             } elseif ($tasks->erred() || $tasks->cancelled()) {
                                 $exception = $tasks->cancelled() ? new CancelledError() : $tasks->exception();
@@ -306,9 +318,17 @@ class Hyper implements HyperInterface
      */
     public function get(string $url, array ...$authorizeHeaderOptions)
     {
-        return $this->sendRequest(
-            $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions)
-        );
+        $request = $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions);
+        try {
+            $response = yield $this->sendRequest($request);
+        } catch (RequestException $requestErrors) {
+            if (\strpos($requestErrors->getMessage(), 'failed'))
+                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+            else
+                throw $requestErrors;
+        }
+
+        return $response;
     }
 
     /**
@@ -316,9 +336,17 @@ class Hyper implements HyperInterface
      */
     public function post(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        return $this->sendRequest(
-            $this->request(Request::METHOD_POST, $url, $data, $authorizeHeaderOptions)
-        );
+        $request = $this->request(Request::METHOD_POST, $url, $data, $authorizeHeaderOptions);
+        try {
+            $response = yield $this->sendRequest($request);
+        } catch (RequestException $requestErrors) {
+            if (\strpos($requestErrors->getMessage(), 'failed'))
+                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+            else
+                throw $requestErrors;
+        }
+
+        return $response;
     }
 
     /**
@@ -326,12 +354,19 @@ class Hyper implements HyperInterface
      */
     public function head(string $url, array ...$authorizeHeaderOptions)
     {
-        $response = yield $this->sendRequest(
-            $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions)
-        );
+        $request = $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions);
+        try {
+            $response = yield $this->sendRequest($request->withOptions(['timeout' => 2]));
+        } catch (RequestException $requestErrors) {
+            if (\strpos($requestErrors->getMessage(), 'failed'))
+                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+            else
+                throw $requestErrors;
+        }
 
         if ($response->getStatusCode() === 405) {
-            $response = yield $this->get($url, $authorizeHeaderOptions);
+            $request = $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions);
+            $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
         }
 
         return $response;
@@ -342,9 +377,17 @@ class Hyper implements HyperInterface
      */
     public function patch(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        return $this->sendRequest(
-            $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions)
-        );
+        $request = $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions);
+        try {
+            $response = yield $this->sendRequest($request);
+        } catch (RequestException $requestErrors) {
+            if (\strpos($requestErrors->getMessage(), 'failed'))
+                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+            else
+                throw $requestErrors;
+        }
+
+        return $response;
     }
 
     /**
@@ -352,9 +395,17 @@ class Hyper implements HyperInterface
      */
     public function put(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        return $this->sendRequest(
-            $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions)
-        );
+        $request = $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions);
+        try {
+            $response = yield $this->sendRequest($request);
+        } catch (RequestException $requestErrors) {
+            if (\strpos($requestErrors->getMessage(), 'failed'))
+                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+            else
+                throw $requestErrors;
+        }
+
+        return $response;
     }
 
     /**
@@ -362,9 +413,17 @@ class Hyper implements HyperInterface
      */
     public function delete(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        return $this->sendRequest(
-            $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions)
-        );
+        $request = $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions);
+        try {
+            $response = yield $this->sendRequest($request);
+        } catch (RequestException $requestErrors) {
+            if (\strpos($requestErrors->getMessage(), 'failed'))
+                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+            else
+                throw $requestErrors;
+        }
+
+        return $response;
     }
 
     /**
@@ -372,9 +431,17 @@ class Hyper implements HyperInterface
      */
     public function options(string $url, array ...$authorizeHeaderOptions)
     {
-        return $this->sendRequest(
-            $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions)
-        );
+        $request = $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions);
+        try {
+            $response = yield $this->sendRequest($request->withOptions(['timeout' => 2]));
+        } catch (RequestException $requestErrors) {
+            if (\strpos($requestErrors->getMessage(), 'failed'))
+                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+            else
+                throw $requestErrors;
+        }
+
+        return $response;
     }
 
     /**
@@ -517,9 +584,7 @@ class Hyper implements HyperInterface
             if ($this->httpId === null) {
                 throw $e;
             } else {
-                $httpId = $this->httpId;
-                $this->httpId = null;
-                return [$e, $httpId];
+                return [$e, $this->httpId];
             }
         } else {
             yield;
@@ -533,14 +598,14 @@ class Hyper implements HyperInterface
 
             $parts = \explode(' ', \array_shift($headers), 3);
             $version = \explode('/', $parts[0])[1];
-            $status = (int)$parts[1];
+            $status = (int) $parts[1];
 
+            yield;
             $method = $request->getMethod();
             if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
                 $response = Response::create($status)
                 ->withProtocolVersion($version);
             else {
-                yield;
                 $response = Response::create($status)
                 ->withProtocolVersion($version)
                 ->withBody($stream);
