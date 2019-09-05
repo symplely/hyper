@@ -13,9 +13,8 @@
     ],
     "require": {
         "php": ">7.1",
-        "psr/log": "^1.0",
         "symplely/http": "^1.0.3",
-        "symplely/coroutine": "^1.1.8"
+        "symplely/coroutine": "^1.1.9"
     },
     "autoload": {
         "files": [
