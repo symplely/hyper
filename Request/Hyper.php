@@ -313,22 +313,33 @@ class Hyper implements HyperInterface
         }
     }
 
+    protected function selectSendRequest(RequestInterface $request, int $attempts = \RETRY_ATTEMPTS, float $timeout = \RETRY_TIMEOUT, bool $withTimeout = false)
+    {
+        if ($attempts > 0) {
+            try {
+                $response = yield $this->sendRequest(($withTimeout) ? $request->withOptions(['timeout' => $timeout]) : $request);
+            } catch (RequestException $requestError) {
+                if (\strpos($requestError->getMessage(), 'failed')) {
+                    $timeout = $timeout * 1.5;
+                    $attempts--;
+                    $response = $this->selectSendRequest($request, $attempts, $timeout, true);
+                } else {
+                    throw $requestError;
+                }
+            }
+        }
+
+        return $response;
+    }
+
     /**
      * @inheritdoc
      */
     public function get(string $url, array ...$authorizeHeaderOptions)
     {
-        $request = $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions);
-        try {
-            $response = yield $this->sendRequest($request);
-        } catch (RequestException $requestErrors) {
-            if (\strpos($requestErrors->getMessage(), 'failed'))
-                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
-            else
-                throw $requestErrors;
-        }
-
-        return $response;
+        return yield $this->selectSendRequest(
+            $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions)
+        );
     }
 
     /**
