@@ -52,7 +52,7 @@ class Hyper implements HyperInterface
         'request_fulluri' => false,
         'max_redirects' => 10,
         'ignore_errors' => true,
-        'timeout' => \REQUEST_TIMEOUT,
+        'timeout' => 2,
         'user_agent' => \SYMPLELY_USER_AGENT,
     ];
 
@@ -328,7 +328,7 @@ class Hyper implements HyperInterface
             $this->timeout = $timeout;
             $this->response = null;
             try {
-                $response = yield $this->sendRequest(($withTimeout) ? $request->withOptions(['timeout' => $timeout]) : $request);
+                $response = yield $this->sendRequest(($withTimeout) ? $request->withOptions(['timeout' => $timeout]) : $request->withOptions(['timeout' => \REQUEST_TIMEOUT]));
             } catch (RequestException $requestError) {
                 if (\strpos($requestError->getMessage(), 'failed')) {
                     $attempts--;
@@ -571,8 +571,10 @@ class Hyper implements HyperInterface
             yield;
             $stream = AsyncStream::createFromResource($resource);
 
-            if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
-                throw new RequestException($request, \error_get_last()['message'], 0);
+            if ($this->httpId) {
+                if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
+                    throw new RequestException($request, \error_get_last()['message'], 0);
+                }
             }
 
             $headers = \stream_get_meta_data($resource)['wrapper_data'];
