@@ -66,6 +66,15 @@ class Hyper implements HyperInterface
      */
     protected $request = null;
 
+    protected $response = null;
+
+    /**
+     * Value to be used with `stream_set_timeout()`
+     *
+     * @var float
+     */
+    protected $timeout = \RETRY_TIMEOUT;
+
     protected $httpId = null;
 
     protected static $waitCount = 0;
@@ -316,20 +325,25 @@ class Hyper implements HyperInterface
     protected function selectSendRequest(RequestInterface $request, int $attempts = \RETRY_ATTEMPTS, float $timeout = \RETRY_TIMEOUT, bool $withTimeout = false)
     {
         if ($attempts > 0) {
+            $this->timeout = $timeout;
+            $this->response = null;
             try {
                 $response = yield $this->sendRequest(($withTimeout) ? $request->withOptions(['timeout' => $timeout]) : $request);
             } catch (RequestException $requestError) {
                 if (\strpos($requestError->getMessage(), 'failed')) {
-                    $timeout = $timeout * 1.5;
                     $attempts--;
-                    $response = $this->selectSendRequest($request, $attempts, $timeout, true);
+                    $timeout = $timeout * \RETRY_MULTIPLY;
+                    $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
                     throw $requestError;
                 }
             }
+
+            $this->response = $response;
+            return $response;
         }
 
-        return $response;
+        return $this->response;
     }
 
     /**
@@ -347,17 +361,9 @@ class Hyper implements HyperInterface
      */
     public function post(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        $request = $this->request(Request::METHOD_POST, $url, $data, $authorizeHeaderOptions);
-        try {
-            $response = yield $this->sendRequest($request);
-        } catch (RequestException $requestErrors) {
-            if (\strpos($requestErrors->getMessage(), 'failed'))
-                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
-            else
-                throw $requestErrors;
-        }
-
-        return $response;
+        return yield $this->selectSendRequest(
+            $this->request(Request::METHOD_POST, $url, $data, $authorizeHeaderOptions)
+        );
     }
 
     /**
@@ -365,19 +371,14 @@ class Hyper implements HyperInterface
      */
     public function head(string $url, array ...$authorizeHeaderOptions)
     {
-        $request = $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions);
-        try {
-            $response = yield $this->sendRequest($request->withOptions(['timeout' => 2]));
-        } catch (RequestException $requestErrors) {
-            if (\strpos($requestErrors->getMessage(), 'failed'))
-                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
-            else
-                throw $requestErrors;
-        }
+        $response = yield $this->selectSendRequest(
+            $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions)
+        );
 
-        if ($response->getStatusCode() === 405) {
-            $request = $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions);
-            $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
+        if (empty($response) || $response->getStatusCode() === 405) {
+            $response = yield $this->selectSendRequest(
+                $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions)
+            );
         }
 
         return $response;
@@ -388,17 +389,9 @@ class Hyper implements HyperInterface
      */
     public function patch(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        $request = $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions);
-        try {
-            $response = yield $this->sendRequest($request);
-        } catch (RequestException $requestErrors) {
-            if (\strpos($requestErrors->getMessage(), 'failed'))
-                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
-            else
-                throw $requestErrors;
-        }
-
-        return $response;
+        return yield $this->selectSendRequest(
+            $this->request(Request::METHOD_PATCH, $url, $data, $authorizeHeaderOptions)
+        );
     }
 
     /**
@@ -406,17 +399,9 @@ class Hyper implements HyperInterface
      */
     public function put(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        $request = $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions);
-        try {
-            $response = yield $this->sendRequest($request);
-        } catch (RequestException $requestErrors) {
-            if (\strpos($requestErrors->getMessage(), 'failed'))
-                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
-            else
-                throw $requestErrors;
-        }
-
-        return $response;
+        return yield $this->selectSendRequest(
+            $this->request(Request::METHOD_PUT, $url, $data, $authorizeHeaderOptions)
+        );
     }
 
     /**
@@ -424,17 +409,9 @@ class Hyper implements HyperInterface
      */
     public function delete(string $url, $data = null, array ...$authorizeHeaderOptions)
     {
-        $request = $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions);
-        try {
-            $response = yield $this->sendRequest($request);
-        } catch (RequestException $requestErrors) {
-            if (\strpos($requestErrors->getMessage(), 'failed'))
-                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
-            else
-                throw $requestErrors;
-        }
-
-        return $response;
+        return yield $this->selectSendRequest(
+            $this->request(Request::METHOD_DELETE, $url, $data, $authorizeHeaderOptions)
+        );
     }
 
     /**
@@ -442,17 +419,10 @@ class Hyper implements HyperInterface
      */
     public function options(string $url, array ...$authorizeHeaderOptions)
     {
-        $request = $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions);
-        try {
-            $response = yield $this->sendRequest($request->withOptions(['timeout' => 2]));
-        } catch (RequestException $requestErrors) {
-            if (\strpos($requestErrors->getMessage(), 'failed'))
-                $response = yield $this->sendRequest($request->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT]));
-            else
-                throw $requestErrors;
-        }
-
-        return $response;
+        return yield $this->selectSendRequest(
+            $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions),
+            3, 5, true
+        );
     }
 
     /**
@@ -600,7 +570,12 @@ class Hyper implements HyperInterface
         } else {
             yield;
             $stream = AsyncStream::createFromResource($resource);
-            $headers = \stream_get_meta_data($resource)['wrapper_data'] ?? [];
+
+            if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
+                throw new RequestException($request, \error_get_last()['message'], 0);
+            }
+
+            $headers = \stream_get_meta_data($resource)['wrapper_data'];
             $this->stream = $stream->hyperId($this->httpId);
 
             if ($option['follow_location']) {

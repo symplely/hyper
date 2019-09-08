@@ -147,7 +147,7 @@ class HyperTest extends TestCase
 	{
         $url = self::TARGET_URLS.'get';
         $response = yield $this->http->sendRequest(
-            (new Request(Request::METHOD_GET, $url))->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT])
+            (new Request(Request::METHOD_GET, $url))->withOptions(['timeout' => 5])
         );
         $json = yield \response_json($response);
 
@@ -168,7 +168,7 @@ class HyperTest extends TestCase
             $this->http->request(Request::METHOD_GET,
             self::TARGET_URLS.'bearer',
             null,
-            ['auth_bearer' => '2323@#$@'])->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT])
+            ['auth_bearer' => '2323@#$@'])->withOptions(['timeout' => 3])
         );
 
         $json = yield \response_json($response);
@@ -188,7 +188,7 @@ class HyperTest extends TestCase
 		$this->expectException(ClientExceptionInterface::class);
 
 		yield $this->http->sendRequest(
-            (new Request(Request::METHOD_GET, 'http://foo'))->debugOff()->withOptions(['timeout' => \FETCH_RETRY_TIMEOUT])
+            (new Request(Request::METHOD_GET, 'http://foo'))->debugOff()->withOptions(['timeout' => 1])
         );
     }
 
@@ -215,7 +215,9 @@ class HyperTest extends TestCase
     {
 		$this->expectOutputRegex('/{"notification_code":2,"severity":0,"message":null,"message_code":0,"bytes_transferred":0,"bytes_max":0}\nConnected/');
 
-		yield $this->http->sendRequest((new Request(Request::METHOD_PATCH, self::TARGET_URLS))->debugOn());
+		yield $this->http->sendRequest(
+            (new Request(Request::METHOD_PATCH, self::TARGET_URLS.'patch'))->debugOn()->withOptions(['timeout' => 2])
+        );
     }
 
     public function testRequestNotification()

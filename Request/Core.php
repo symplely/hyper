@@ -149,10 +149,10 @@ if (!\function_exists('hyper')) {
     \define('BAD_ID', "Invalid HTTP `task` ID!");
 
 	\define('FETCH_CHUNK', 4096);
-	\define('RETRY_ATTEMPTS', 5);
-	\define('RETRY_TIMEOUT', .5); // will be multiplied by 1.5
-	\define('FETCH_RETRY_TIMEOUT', 2.5);
-	\define('REQUEST_TIMEOUT', 1);
+	\define('RETRY_ATTEMPTS', 10);
+	\define('RETRY_TIMEOUT', .5); // will be multiplied by RETRY_MULTIPLY
+	\define('RETRY_MULTIPLY', 1.5);
+	\define('REQUEST_TIMEOUT', .3);
 
 	/**
      * Helper function, shouldn't be called directly.
