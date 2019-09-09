@@ -94,19 +94,13 @@ class AsyncStream implements StreamInterface
      * @param string|resource $stream String stream target or stream resource.
      * @throws \InvalidArgumentException for invalid streams or resources.
      */
-    protected function setStream($stream)
+    protected function setStream($string)
     {
         $resource = @\fopen('php://temp', 'rb+');
-        if (\is_resource($resource)) {
-            self::setNonBlocking($resource);
-            Kernel::writeWait($resource);
-            \fwrite($resource, $stream);
-            \rewind($resource);
-        } else {
-            throw new \InvalidArgumentException(
-                'Invalid stream provided; must be a string stream identifier or stream resource'
-            );
-        }
+        self::setNonBlocking($resource);
+        Kernel::writeWait($resource);
+        \fwrite($resource, $string);
+        \rewind($resource);
 
         $this->resource = $resource;
     }
@@ -116,11 +110,6 @@ class AsyncStream implements StreamInterface
         $this->httpId = $httpId;
 
         return $this;
-    }
-
-	public function getHyperId(): ?int
-	{
-        return $this->httpId;
     }
 
     /**

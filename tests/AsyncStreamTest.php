@@ -15,10 +15,10 @@ class AsyncStreamTest extends TestCase
         \coroutine_clear();
     }
 
-	public function testConstructorThrowsExceptionOnInvalidArgument(){
+    public function testConstructorThrowsExceptionOnInvalidArgument()
+    {
 		$this->expectException(\InvalidArgumentException::class);
 
-		/** @noinspection PhpParamsInspection */
 		new AsyncStream(true);
     }
 

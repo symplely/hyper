@@ -233,10 +233,10 @@ class CoreTest extends TestCase
         $this->assertEquals('{"success":true}', yield \response_body('pipe'));
         \response_clear('pipe');
 
+        \http_clear('bin');
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage(\BAD_CALL);
         $this->assertEquals('{"success":true}', yield \response_body('bin'));
-        \http_clear('bin');
     }
 
     public function testRequestPut()
@@ -265,10 +265,10 @@ class CoreTest extends TestCase
         $this->assertEquals('{"success":true}', yield \response_body('pipe'));
         \response_clear('pipe');
 
+        \http_clear('bin');
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage(\BAD_CALL);
         $this->assertEquals('{"success":true}', yield \response_json('bin'));
-        \http_clear('bin');
     }
 
     public function testRequestPatch()
