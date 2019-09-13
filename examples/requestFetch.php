@@ -6,7 +6,20 @@ include 'vendor/autoload.php';
 
 use Async\Coroutine\Exceptions\Panicking;
 
+function lapse() {
+    $i = 0;
+    while(true) {
+        $i++;
+        if ($i == 200) {
+            print 'x'.$i;
+            $i=0;
+        }
+        yield;
+    }
+}
+
 function main() {
+    yield \await(lapse());
     $uris = [
         "https://github.com/",
         "https://google.com/",
@@ -19,6 +32,7 @@ function main() {
 
         // Make an asynchronous HTTP request
         foreach ($uris as $uri) {
+            echo 'here';
             $uriId[] = yield \request(\http_get($uri));
         }
 
@@ -28,7 +42,9 @@ function main() {
         // Here we use yield which pauses the execution of the current coroutine task
         // until the http task id resolves. Hyper will automatically continue the
         // coroutine then.
+        echo 'begin';
         $bodies = yield \fetch($uriId);
+        echo 'end';
 
         foreach ($bodies as $id => $result) {
             $uri = \response_meta($result, 'uri');
@@ -38,6 +54,7 @@ function main() {
     } catch (Panicking $error) {
         echo 'There was a problem: '.$error->getMessage();
     }
+    yield \shutdown();
 }
 
 \coroutine_run(\main());
