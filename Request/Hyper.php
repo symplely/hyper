@@ -171,16 +171,18 @@ class Hyper implements HyperInterface
                         $count = 0;
                     }
                 }
+
                 while ($count > 0) {
                     foreach($httpList as $id) {
                         if (isset($taskList[$id])) {
                             $tasks = $taskList[$id];
                             if ($tasks->isCustomState('beginning')
-                                && ($tasks->pending() || $tasks->rescheduled())
+                                || $tasks->pending()
+                                || $tasks->rescheduled()
                             ) {
-                                $tasks->customState('started');
                                 try {
-                                    $coroutine->runCoroutines();
+                                    $tasks->customState('started');
+                                    $coroutine->runCoroutines(true);
                                 } catch(\Throwable $error) {
                                     $tasks->setState('erred');
                                     $tasks->setException($error);

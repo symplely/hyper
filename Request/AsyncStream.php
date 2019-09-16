@@ -279,78 +279,22 @@ class AsyncStream implements StreamInterface
         return true;
     }
 
-	public static function fetchContents(StreamInterface $stream)
+	public static function waitRead($streamSocket)
 	{
 		return new Kernel(
-			function(TaskInterface $task, Coroutine $coroutine) use ($stream) {
-                $handle =  $stream->getResource();
-                if ($stream->isReadable() && ($handle !== null)) {
-                    $buffer = "";
-                    while (!\feof($handle)) {
-                        $coroutine->addReader($handle, $task);
-                        $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
-                    }
-
-                    if (false !== $buffer) {
-                        $task->sendValue($buffer);
-                        $coroutine->schedule($task);
-                    } else {
-                        throw new \RuntimeException('Unable to get contents from underlying resource');
-                    }
-                } else {
-                    throw new \RuntimeException('Underlying resource is not readable');
-                }
+			function(TaskInterface $task, Coroutine $coroutine) use ($streamSocket) {
+				$coroutine->addReader($streamSocket, $task);
+				$coroutine->schedule($task);
 			}
 		);
     }
 
-	public static function fetchRead(StreamInterface $stream, int $length)
+	public static function waitWrite($streamSocket)
 	{
 		return new Kernel(
-			function(TaskInterface $task, Coroutine $coroutine) use ($stream, $length) {
-                $handle =  $stream->getResource();
-                if (!$stream->isReadable() || ($handle === null)) {
-                    throw new \RuntimeException('Stream is not readable');
-                }
-
-                if($length < 0) {
-                    throw new \RuntimeException('Length parameter cannot be negative');
-                }
-
-                if ($length === 0) {
-                    $task->sendValue('');
-                    $coroutine->schedule($task);
-                } else {
-                    $coroutine->addReader($handle, $task);
-                    $contents = \fread($handle, $length);
-                    if (false !== $contents) {
-                        $task->sendValue($contents);
-                        $coroutine->schedule($task);
-                    } else {
-                        throw new \RuntimeException('Unable to read from underlying resource');
-                    }
-                }
-			}
-		);
-    }
-
-	public static function fetchWrite(StreamInterface $stream, $string)
-	{
-		return new Kernel(
-			function(TaskInterface $task, Coroutine $coroutine) use ($stream, $string) {
-                $handle =  $stream->getResource();
-                if (!$stream->isWritable() || ($handle === null)) {
-                    throw new \RuntimeException('Stream is not writable');
-                }
-
-				$coroutine->addWriter($handle, $task);
-				$written = \fwrite($handle, $string);
-                if (false !== $written) {
-                    $task->sendValue($written);
-				    $coroutine->schedule($task);
-                } else {
-                    throw new \RuntimeException('Unable to write to underlying resource');
-                }
+			function(TaskInterface $task, Coroutine $coroutine) use ($streamSocket) {
+				$coroutine->addWriter($streamSocket, $task);
+				$coroutine->schedule($task);
 			}
 		);
     }
@@ -360,7 +304,22 @@ class AsyncStream implements StreamInterface
      */
     public function getContents()
     {
-        return self::fetchContents($this);
+        $handle =  $this->getResource();
+        if ($this->isReadable() && ($handle !== null)) {
+            $buffer = "";
+            while (!\feof($handle)) {
+                yield self::waitRead($handle);
+                $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
+            }
+
+            if (false !== $buffer) {
+                yield Coroutine::value($buffer);
+            } else {
+                throw new \RuntimeException('Unable to get contents from underlying resource');
+            }
+        } else {
+            throw new \RuntimeException('Underlying resource is not readable');
+        }
     }
 
     /**
@@ -368,7 +327,26 @@ class AsyncStream implements StreamInterface
      */
     public function read($length)
     {
-        return self::fetchRead($this, $length);
+        $handle =  $this->getResource();
+        if (!$this->isReadable() || ($handle === null)) {
+            throw new \RuntimeException('Stream is not readable');
+        }
+
+        if($length < 0) {
+            throw new \RuntimeException('Length parameter cannot be negative');
+        }
+
+        if ($length === 0) {
+            yield Coroutine::value('');
+        } else {
+            yield self::waitRead($handle);
+            $contents = \fread($handle, $length);
+            if (false !== $contents) {
+                yield Coroutine::value($contents);
+            } else {
+                throw new \RuntimeException('Unable to read from underlying resource');
+            }
+        }
     }
 
     /**
@@ -376,9 +354,22 @@ class AsyncStream implements StreamInterface
      */
     public function write($string)
     {
+        $handle =  $this->getResource();
+        if (!$this->isWritable() || ($handle === null)) {
+            throw new \RuntimeException('Stream is not writable');
+        }
+
         // We can't know the size after writing anything
         $this->size = null;
-        return self::fetchWrite($this, $string);
+
+        yield self::waitWrite($handle);
+        $written = \fwrite($handle, $string);
+
+        if (false !== $written) {
+            yield Coroutine::value($written);
+        } else {
+            throw new \RuntimeException('Unable to write to underlying resource');
+        }
     }
 
     /**
@@ -532,7 +523,7 @@ class AsyncStream implements StreamInterface
 		self::setNonBlocking($copy);
         while (!\feof($resource)) {
 			yield Kernel::readWait($resource);
-			$data = \stream_get_contents($resource, 512);
+			$data = \stream_get_contents($resource, \FETCH_CHUNK);
             $count = \strlen($data);
             if ($count) {
 				yield Kernel::writeWait($copy);

@@ -10,10 +10,7 @@ function lapse() {
     $i = 0;
     while(true) {
         $i++;
-        if ($i == 200) {
-            print 'x'.$i;
-            $i=0;
-        }
+        print $i.'.lapse ';
         yield;
     }
 }
@@ -32,7 +29,7 @@ function main() {
 
         // Make an asynchronous HTTP request
         foreach ($uris as $uri) {
-            echo 'here';
+            echo 'requesting'.\EOL;
             $uriId[] = yield \request(\http_get($uri));
         }
 
@@ -42,14 +39,14 @@ function main() {
         // Here we use yield which pauses the execution of the current coroutine task
         // until the http task id resolves. Hyper will automatically continue the
         // coroutine then.
-        echo 'begin';
+        echo 'begin fetching'.\EOL;
         $bodies = yield \fetch($uriId);
-        echo 'end';
+        echo 'fetch ended'.\EOL;
 
         foreach ($bodies as $id => $result) {
             $uri = \response_meta($result, 'uri');
             $body = yield \response_body($result);
-            print "HTTP Task $id: ". $uri. " - " . \strlen($body) . " bytes" . \EOL;
+            print \EOL."HTTP Task $id: ". $uri. " - " . \strlen($body) . " bytes" . \EOL.\EOL;
         }
     } catch (Panicking $error) {
         echo 'There was a problem: '.$error->getMessage();
