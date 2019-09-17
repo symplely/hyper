@@ -182,12 +182,12 @@ class Hyper implements HyperInterface
                             ) {
                                 try {
                                     $tasks->customState('started');
-                                    $coroutine->runCoroutines(true);
+                                    $coroutine->execute(true);
                                 } catch(\Throwable $error) {
                                     $tasks->setState('erred');
                                     $tasks->setException($error);
                                     $coroutine->schedule($tasks);
-                                    $coroutine->runCoroutines();
+                                    $coroutine->execute();
                                 }
                             } elseif ($tasks->completed()) {
                                 $tasks->customState('ended');

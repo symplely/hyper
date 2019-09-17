@@ -14,7 +14,7 @@
     "require": {
         "php": ">7.1",
         "symplely/http": "^1.0.3",
-        "symplely/coroutine": "^1.2.3"
+        "symplely/coroutine": "^1.2.5"
     },
     "autoload": {
         "files": [
