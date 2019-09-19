@@ -14,6 +14,7 @@
     "require": {
         "php": ">7.1",
         "symplely/http": "^1.0.3",
+        "symplely/logger": "^1.0.0",
         "symplely/coroutine": "^1.2.5"
     },
     "autoload": {
