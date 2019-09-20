@@ -111,11 +111,7 @@ class Body extends BufferStream implements BodyInterface, PartInterface
      */
     public function json(array $data, string $contentType = null)
     {
-        if (($json = \json_encode($data)) === false) {
-            throw new \Exception('Invalid JSON');
-        }
-
-        $this->buffer = $json;
+        $this->buffer = (string) \json_encode($data);
         $this->type = self::JSON;
 		$this->contentType = empty($contentType) ? self::JSON_TYPE : $contentType;
     }

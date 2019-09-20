@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/symplely/hyper.svg?branch=master)](https://travis-ci.org/symplely/hyper)[![Build status](https://ci.appveyor.com/api/projects/status/0l48ubuakc6wtqqm/branch/master?svg=true)](https://ci.appveyor.com/project/techno-express/hyper/branch/master)[![codecov](https://codecov.io/gh/symplely/hyper/branch/master/graph/badge.svg)](https://codecov.io/gh/symplely/hyper)[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d902c3aa05d74df699aa9e962e70f63d)](https://www.codacy.com/app/techno-express/hyper?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=symplely/hyper&amp;utm_campaign=Badge_Grade)[![Maintainability](https://api.codeclimate.com/v1/badges/db8ee4adb142ffad35c9/maintainability)](https://codeclimate.com/github/symplely/hyper/maintainability)
 
-An simple advance asynchronous PSR-18 HTTP client using coroutines.
+An simple advance PSR-7 implementation and asynchronous PSR-18 HTTP client using coroutines.
 
 ## Table of Contents
 
@@ -14,11 +14,9 @@ An simple advance asynchronous PSR-18 HTTP client using coroutines.
 * [Contributing](#contributing)
 * [License](#license)
 
-**This package is under development.**
-
 ## Introduction/Usage
 
-This package is based on [**coroutines**](https://symplely.github.io/coroutine/) using `yield` an `generator`, it requires our other repo package [Coroutine](https://github.com/symplely/coroutine).
+This package is based on [**coroutines**](https://symplely.github.io/coroutine/) using `yield` an `generator`, it requires our other repo package [Coroutine](https://github.com/symplely/coroutine). It's construction is inspired by and an overhaul of [shuttle](https://github.com/nimbly/shuttle), an PSR-18 client.
 
 There is a lot to be said about *coroutines*, but for an quick overview, checkout this [video](https://youtu.be/NsQ2QIrQShU), if you have no formulary with the concept or construction. Only one thing to keep in mind when viewing the video, is that it's an overview of callbacks vs promises vs generators, an object given an async/await construction in other languages. And the `Promise` reference there, is referred here has as an `Task`, that returns a plain `Integer`.
 
@@ -93,9 +91,9 @@ yield \request_abort($httpId);
 \http_clear($tag);
 
 /**
- * Clear & Close `ALL` - `Hyper`, and `StreamInterface` Instances.
+ * Close and Clear `ALL` global Hyper function, Stream instances.
  */
-\http_clear_all();
+\http_nuke();
 
 /**
  * Make a GET request, will pause current task, and
@@ -173,9 +171,9 @@ yield \http_head($tagUri, ...$authorizeHeaderOptions);
 \response_clear($tag);
 
 /**
- * Clear and close `ALL` global functions response key instances.
+ * Close and Clear `ALL` global functions response instances.
  */
-\response_clear_all();
+\response_nuke();
 
 /**
  * Is response from an successful request?

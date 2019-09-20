@@ -16,6 +16,7 @@ use Async\Request\BodyInterface;
 use Async\Request\HyperInterface;
 use Async\Request\Exception\NetworkException;
 use Async\Request\Exception\RequestException;
+use Psr\Log\LoggerInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
@@ -77,9 +78,25 @@ class Hyper implements HyperInterface
 
     protected $httpId = null;
 
+    protected static $logger = null;
+    protected static $defaultLog = [];
+    protected static $defaultLogger = false;
+
     protected static $waitCount = 0;
     protected static $waitShouldError = true;
     protected static $waitAbortedCleared = true;
+
+    public function __construct(LoggerInterface $logger = null)
+    {
+        if (empty($logger)) {
+            self::$logger = \logger_instance();
+            self::$defaultLogger = true;
+            \logger_array(self::$defaultLog);
+        } else {
+            self::$logger = $logger;
+            self::$defaultLogger = false;
+        }
+    }
 
     /**
      * @inheritdoc
@@ -92,6 +109,11 @@ class Hyper implements HyperInterface
         $this->request = null;
 
         return [$request, $stream];
+    }
+
+	public static function defaultLog(): array
+	{
+        return (self::$defaultLogger) ? self::$defaultLog : [];
     }
 
 	public function hyperId(int $httpId)
@@ -324,7 +346,7 @@ class Hyper implements HyperInterface
         }
     }
 
-    protected function selectSendRequest(RequestInterface $request, int $attempts = \RETRY_ATTEMPTS, float $timeout = \RETRY_TIMEOUT, bool $withTimeout = false)
+    public function selectSendRequest(RequestInterface $request, int $attempts = \RETRY_ATTEMPTS, float $timeout = \RETRY_TIMEOUT, bool $withTimeout = false)
     {
         if ($attempts > 0) {
             $this->timeout = $timeout;
@@ -521,6 +543,7 @@ class Hyper implements HyperInterface
     public function sendRequest(RequestInterface $request)
     {
         $option = self::OPTIONS;
+        $method = $request->getMethod();
 
         if ($request->getBody()->getSize()) {
 			$request = $request->withHeader('Content-Length', (string) $request->getBody()->getSize());
@@ -529,7 +552,7 @@ class Hyper implements HyperInterface
         $useOption = $request->getOptions();
         $useOptions = empty($useOptions) ? $option : $useOption;
 		$options = \array_merge($useOptions, [
-			'method' => $request->getMethod(),
+			'method' => $method,
 			'protocol_version' => $request->getProtocolVersion(),
 			'header' => $this->buildRequestHeaders($request->getHeaders()),
         ]);
@@ -553,10 +576,12 @@ class Hyper implements HyperInterface
             \stream_context_set_params($ctx, array('notification' => [$request, 'debug']));
         }
 
-        $resource = @\fopen($request->getUri()->__toString(), 'rb', false, $ctx);
+        $url = $request->getUri()->__toString();
+        $start = \microtime(true);
+        $resource = @\fopen($url, 'rb', false, $ctx);
+        $timer = \microtime(true) - $start;
 
         if (!\is_resource($resource)) {
-            yield;
             $error = \error_get_last()['message'];
             if (\strpos($error, 'getaddrinfo') || \strpos($error, 'Connection refused')) {
                 $e = new NetworkException($error, $request);
@@ -564,18 +589,33 @@ class Hyper implements HyperInterface
                 $e = new RequestException($request, $error, 0);
             }
 
+            yield \log_error(
+                'Request: {request} timeout: {timeout} exception: {exception}',
+                [ 'request' => $request, 'timeout' => $this->timeout, 'exception' => $e]
+            );
+
             if ($this->httpId === null) {
                 throw $e;
             } else {
                 return [$e, $this->httpId];
             }
         } else {
-            yield;
+            yield \log_info(
+                'Request: {method} {url} timeout: {timeout} connected at: {timer}ms',
+                [ 'method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer]
+            );
+
             $stream = AsyncStream::createFromResource($resource);
 
             if ($this->httpId) {
                 if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
-                    throw new RequestException($request, \error_get_last()['message'], 0);
+                    $e = new RequestException($request, \error_get_last()['message'], 0);
+                    yield \log_debug(
+                        'Request: {method} {url} timeout: {timeout} exception: {exception}',
+                        [ 'method' => $method, 'url' => $url, 'timeout' =>  ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e]
+                    );
+
+                    throw $e;
                 }
             }
 
@@ -591,7 +631,6 @@ class Hyper implements HyperInterface
             $status = (int) $parts[1];
 
             yield;
-            $method = $request->getMethod();
             if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
                 $response = Response::create($status)
                 ->withProtocolVersion($version);

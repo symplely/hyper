@@ -9,6 +9,7 @@ use Async\Request\Response;
 use Async\Request\Request;
 use Async\Coroutine\Exceptions\Panicking;
 use Async\Request\Exception\RequestException;
+use Async\Request\Hyper;
 use PHPUnit\Framework\TestCase;
 
 class CoreTest extends TestCase
@@ -28,8 +29,8 @@ class CoreTest extends TestCase
 	protected function setUp(): void
     {
         \coroutine_clear();
-        \http_clear_all();
-        \response_clear_all();
+        \http_nuke();
+        \response_nuke();
     }
 
     public function task_head($websites)
@@ -171,8 +172,8 @@ class CoreTest extends TestCase
             $this->assertNotNull($echo);
         }
 
-        \http_clear_all();
-        \response_clear_all();
+        \http_nuke();
+        \response_nuke();
     }
 
     public function testFetchFailSkip()

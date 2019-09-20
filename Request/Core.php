@@ -8,6 +8,7 @@ use Async\Request\HyperInterface;
 use Async\Request\BodyInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerInterface;
 
 if(!\function_exists('mime_content_type')) {
     function mime_content_type($filename)
@@ -174,7 +175,7 @@ if (!\function_exists('hyper')) {
 
         $http = \http_instance($tag);
         if ($isRequest instanceof RequestInterface) {
-            $httpFunction = \awaitAble([$http, 'sendRequest'], $isRequest);
+            $httpFunction = \awaitAble([$http, 'selectSendRequest'], $isRequest);
         } elseif ($isRequest instanceof \Generator) {
             global $__uriTag__;
             $httpFunction = $isRequest;
@@ -300,17 +301,22 @@ if (!\function_exists('hyper')) {
 	/**
      * Creates an `Hyper` instance for global HTTP functions by.
 	 */
-	function http_instance(string $tag = null): HyperInterface
+	function http_instance(string $tag = null, LoggerInterface $logger = null): HyperInterface
 	{
         global $__uri__, $__uriTag__;
 
         if (empty($tag)) {
-            $__uri__ = new Hyper;
+            $__uri__ = new Hyper($logger);
         } elseif (!isset($__uriTag__[$tag]) || !$__uriTag__[$tag] instanceof HyperInterface) {
-            $__uriTag__[$tag] = new Hyper;
+            $__uriTag__[$tag] = new Hyper($logger);
         }
 
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
+    }
+
+	function http_logger(LoggerInterface $logger = null, string $tag = null): HyperInterface
+	{
+		return \http_instance($tag, $logger);
 	}
 
 	/**
@@ -346,9 +352,9 @@ if (!\function_exists('hyper')) {
     }
 
 	/**
-     * Clear & Close `ALL` - `Hyper`, and `StreamInterface` Instances by.
+     * Close and Clear `ALL` global Hyper function, Stream instances.
 	 */
-	function http_clear_all()
+	function http_nuke()
 	{
         global $__uri__, $__uriTag__;
 
@@ -569,11 +575,11 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * Clear `ALL` global functions response instance by.
+     * Close and Clear `ALL` global functions response instances.
      *
      * @param \ResponseInterface|mixed $tag
      */
-	function response_clear_all()
+	function response_nuke()
 	{
         global $__uriResponse__, $__uriResponseTag__;
 
