@@ -301,22 +301,43 @@ if (!\function_exists('hyper')) {
 	/**
      * Creates an `Hyper` instance for global HTTP functions by.
 	 */
-	function http_instance(string $tag = null, LoggerInterface $logger = null): HyperInterface
+	function http_instance(string $tag = null, LoggerInterface $logger = null, ?string $name = null): HyperInterface
 	{
         global $__uri__, $__uriTag__;
 
         if (empty($tag)) {
-            $__uri__ = new Hyper($logger);
+            $__uri__ = new Hyper($logger, $name);
         } elseif (!isset($__uriTag__[$tag]) || !$__uriTag__[$tag] instanceof HyperInterface) {
-            $__uriTag__[$tag] = new Hyper($logger);
+            $__uriTag__[$tag] = new Hyper($logger, $name);
         }
 
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
     }
 
-	function http_logger(LoggerInterface $logger = null, string $tag = null): HyperInterface
+	function http_logger(LoggerInterface $logger = null, ?string $name = null, ?string $tag = null): HyperInterface
 	{
-		return \http_instance($tag, $logger);
+		return \http_instance($tag, $logger, $name);
+    }
+
+	function http_logs(): array
+	{
+		return Hyper::defaultLog();
+    }
+
+	/**
+	 * - This function needs to be prefixed with `yield`
+	 */
+	function http_closeLog($tag = null)
+	{
+        global $__uri__, $__uriTag__;
+
+        if (empty($tag) && $__uri__ instanceof HyperInterface) {
+            [, $name] = $__uri__->logger();
+            yield \logger_shutdown($name);
+        } elseif (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
+            [, $name] = $__uriTag__[$tag]->logger();
+            yield \logger_shutdown($name);
+        }
 	}
 
 	/**
@@ -330,11 +351,13 @@ if (!\function_exists('hyper')) {
             [, $stream] = $tag->getHyper();
             if ($stream instanceof StreamInterface)
                 $stream->close();
+            $tag->flush();
         } elseif (empty($tag)) {
             if ($__uri__ instanceof HyperInterface) {
                 [, $stream] = $__uri__->getHyper();
                 if ($stream instanceof StreamInterface)
                     $stream->close();
+                $__uri__->flush();
             }
 
             $__uri__ = null;
@@ -344,6 +367,7 @@ if (!\function_exists('hyper')) {
                 [, $stream] = $__uriTag__[$tag]->getHyper();
                 if ($stream instanceof StreamInterface)
                     $stream->close();
+                $__uriTag__[$tag]->flush();
             }
 
             $__uriTag__[$tag] = null;
@@ -362,6 +386,7 @@ if (!\function_exists('hyper')) {
             [, $stream] = $__uri__->getHyper();
             if ($stream instanceof StreamInterface)
                 $stream->close();
+            $__uri__->flush();
         }
         unset($GLOBALS['__uri__']);
 
@@ -372,6 +397,7 @@ if (!\function_exists('hyper')) {
                     [, $stream] = $__uriTag__[$key]->getHyper();
                     if ($stream instanceof StreamInterface)
                         $stream->close();
+                    $__uriTag__[$key]->flush();
                 }
 
                 $__uriTag__[$key] = null;

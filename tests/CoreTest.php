@@ -61,6 +61,8 @@ class CoreTest extends TestCase
             }
         }, $responses);
 
+        yield \http_closeLog();
+        $this->assertNotEmpty(\http_logs());
         \http_clear();
         \response_clear();
         $this->assertNull($__uri__);
@@ -74,6 +76,7 @@ class CoreTest extends TestCase
         $this->assertEquals('int', \is_type($int));
         yield \request_abort($int);
         $data = yield from $this->task_head($this->websites);
+        $this->assertEmpty(\http_logs());
         $this->expectOutputString('{"200":3,"400":0}');
         print $data;
     }

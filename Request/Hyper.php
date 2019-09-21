@@ -67,8 +67,6 @@ class Hyper implements HyperInterface
      */
     protected $request = null;
 
-    protected $response = null;
-
     /**
      * Value to be used with `stream_set_timeout()`
      *
@@ -78,7 +76,8 @@ class Hyper implements HyperInterface
 
     protected $httpId = null;
 
-    protected static $logger = null;
+    protected $loggerName = '';
+    protected $logger = null;
     protected static $defaultLog = [];
     protected static $defaultLogger = false;
 
@@ -86,14 +85,21 @@ class Hyper implements HyperInterface
     protected static $waitShouldError = true;
     protected static $waitAbortedCleared = true;
 
-    public function __construct(LoggerInterface $logger = null)
+    public function __construct(LoggerInterface $logger = null, ?string $name = null)
     {
+        if (empty($name)) {
+            $path = \explode('\\', \get_called_class());
+            $name = \array_pop($path);
+        }
+
+        $this->loggerName = $name;
+
         if (empty($logger)) {
-            self::$logger = \logger_instance();
+            $this->logger = \logger_instance($this->loggerName);
             self::$defaultLogger = true;
-            \logger_array(self::$defaultLog);
+            \logger_array(self::$defaultLog, 0xff, 1, null, $this->loggerName);
         } else {
-            self::$logger = $logger;
+            $this->logger = $logger;
             self::$defaultLogger = false;
         }
     }
@@ -111,16 +117,36 @@ class Hyper implements HyperInterface
         return [$request, $stream];
     }
 
-	public static function defaultLog(): array
-	{
-        return (self::$defaultLogger) ? self::$defaultLog : [];
-    }
-
 	public function hyperId(int $httpId)
 	{
         $this->httpId = $httpId;
 
         return $this;
+    }
+
+	public function flush()
+	{
+        $this->request = null;
+        $this->stream = null;
+        $this->httpId = null;
+        $this->timeout = \RETRY_TIMEOUT;
+        $this->logger = null;
+        $this->loggerName = '';
+        self::$defaultLog = [];
+        self::$defaultLogger = false;
+        self::$waitCount = 0;
+        self::$waitShouldError = true;
+        self::$waitAbortedCleared = true;
+    }
+
+	public function logger()
+	{
+        return [$this->logger, $this->loggerName];
+    }
+
+	public static function defaultLog(): array
+	{
+        return (self::$defaultLogger) ? self::$defaultLog : [];
     }
 
     /**
@@ -349,25 +375,29 @@ class Hyper implements HyperInterface
     public function selectSendRequest(RequestInterface $request, int $attempts = \RETRY_ATTEMPTS, float $timeout = \RETRY_TIMEOUT, bool $withTimeout = false)
     {
         if ($attempts > 0) {
-            $this->timeout = $timeout;
-            $this->response = null;
+            $this->timeout = ($withTimeout) ? $timeout : \REQUEST_TIMEOUT;
             try {
                 $response = yield $this->sendRequest(($withTimeout) ? $request->withOptions(['timeout' => $timeout]) : $request->withOptions(['timeout' => \REQUEST_TIMEOUT]));
             } catch (RequestException $requestError) {
                 if (\strpos($requestError->getMessage(), 'failed')) {
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
+                    yield \log_debug(
+                        'Retry: {attempts} Timeout: {timeout} Exception: {exception}',
+                        [ 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        $this->loggerName
+                    );
+
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
                     throw $requestError;
                 }
             }
 
-            $this->response = $response;
             return $response;
         }
 
-        return $this->response;
+        return;
     }
 
     /**
@@ -590,8 +620,9 @@ class Hyper implements HyperInterface
             }
 
             yield \log_error(
-                'Request: {request} timeout: {timeout} exception: {exception}',
-                [ 'request' => $request, 'timeout' => $this->timeout, 'exception' => $e]
+                'In: {timer}ms Timeout: {timeout} Exception: {exception}',
+                ['timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
+                $this->loggerName
             );
 
             if ($this->httpId === null) {
@@ -601,18 +632,21 @@ class Hyper implements HyperInterface
             }
         } else {
             yield \log_info(
-                'Request: {method} {url} timeout: {timeout} connected at: {timer}ms',
-                [ 'method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer]
+                'Request: {method} {url} Timeout: {timeout} Took: {timer}ms',
+                ['method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
+                $this->loggerName
             );
 
             $stream = AsyncStream::createFromResource($resource);
 
             if ($this->httpId) {
                 if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
+                    $stream->close();
                     $e = new RequestException($request, \error_get_last()['message'], 0);
-                    yield \log_debug(
-                        'Request: {method} {url} timeout: {timeout} exception: {exception}',
-                        [ 'method' => $method, 'url' => $url, 'timeout' =>  ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e]
+                    yield \log_warning(
+                        'Request: {method} {url} Unset: {timeout} Exception: {exception}',
+                        [ 'method' => $method, 'url' => $url, 'timeout' =>  ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
+                        $this->loggerName
                     );
 
                     throw $e;
