@@ -20,12 +20,81 @@ This package is based on [**coroutines**](https://symplely.github.io/coroutine/)
 
 There is a lot to be said about *coroutines*, but for an quick overview, checkout this [video](https://youtu.be/NsQ2QIrQShU), if you have no formulary with the concept or construction. Only one thing to keep in mind when viewing the video, is that it's an overview of callbacks vs promises vs generators, an object given an async/await construction in other languages. And the `Promise` reference there, is referred here has as an `Task`, that returns a plain `Integer`.
 
-This library and the whole *Coroutine* concept here, is base around *NEVER* having the user/developer *directly* accessing the *Task*, the *Promise* like object.
+This library and the whole *Coroutine* concept here, is base around *NEVER* having the user/developer *directly* accessing the *Task*, the *Promise* like object. For conceptually usage example see [Advanced Asyncio: Solving Real World Production Problems](https://youtu.be/yKfenooKl6M).
+
+___From example's folder:___
 
 ```php
+/**
+ * @see https://github.com/amphp/artax/blob/master/examples/6-parallel-requests.php
+ */
+include 'vendor/autoload.php';
+
+use Async\Coroutine\Exceptions\Panicking;
+
+// An infinite loop example task, this will output on all task executions, pauses, stalls, or whatever.
+function lapse() {
+    $i = 0;
+    while(true) {
+        $i++;
+        print $i.'.lapse ';
+        yield;
+    }
+}
+
+// An initial function is required, this gives all other tasks an execution point to begin.
+function main() {
+    // start an background job/task
+    yield \await(lapse());
+    $uris = [
+        "https://github.com/",
+        "https://google.com/",
+        "https://stackoverflow.com/",
+        'http://creativecommons.org/'
+    ];
+
+    try {
+        $uriId = [];
+
+        // Make an asynchronous HTTP requests
+        // this `array` will collect `int`, represents an `http task id`
+        // each `request()` starts an new background task, does not block or wait.
+        // the `array` will be passed to `fetch();` for resolution.
+        foreach ($uris as $uri) {
+            $uriId[] = yield \request(\http_get($uri));
+        }
+
+        // Executions here will pause and wait for each request to receive an response,
+        // all previous tasks started will continue to run, so you will see output only
+        // from the `lapse` task here until the foreach loop starts.
+        // Doing `\fetchOptions(1);` before this statement will wait for only 1 response.
+        $bodies = yield \fetch($uriId);
+
+        foreach ($bodies as $id => $result) {
+            $uri = \response_meta($result, 'uri');
+            // will pause execution of loop until full body is received, only `lapse` task will still output
+            $body = yield \response_body($result);
+            print \EOL."HTTP Task $id: ". $uri. " - " . \strlen($body) . " bytes" . \EOL.\EOL;
+        }
+    } catch (Panicking $error) {
+        echo 'There was a problem: '.$error->getMessage();
+    }
+
+    // display the collected stats logs
+    \print_defaultLog();
+    yield \http_closeLog();
+    // if you don't the infinite loop will continue it's output.
+    yield \shutdown();
+}
+
+// Coroutine code needs to be bootstrapped.
+// The function called `MUST` have at least one `yield` statement.
+\coroutine_run(\main());
 ```
 
 ## Functions
+
+The functions listed  **here** and in **Core.php** file is the recommended way to use this package. An functional programming approach is being used, the actual OOP class library used is constantly changing, but these calling functions will not.
 
 ```php
 const SYMPLELY_USER_AGENT = 'Symplely Hyper PHP/' . \PHP_VERSION;
