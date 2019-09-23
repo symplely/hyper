@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Async\Request;
 
+use Async\Request\Hyper;
 use Async\Coroutine\Kernel;
-use Psr\Http\Message\StreamInterface;
 use Async\Coroutine\Coroutine;
 use Async\Coroutine\TaskInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * Class AsyncStream
@@ -58,7 +59,10 @@ class AsyncStream implements StreamInterface
 	 */
     private $size;
 
-    private $httpId;
+	/**
+	 * @var int
+	 */
+    private $hyperId;
 
     protected static $nonBlocking = [];
 
@@ -105,11 +109,16 @@ class AsyncStream implements StreamInterface
         $this->resource = $resource;
     }
 
-	public function hyperId(int $httpId = null)
+	public function hyperId(?int $hyperId)
 	{
-        $this->httpId = $httpId;
+        $this->hyperId = $hyperId;
 
         return $this;
+    }
+
+	public function getHyperId()
+	{
+        return $this->httpId;
     }
 
     /**
@@ -259,7 +268,7 @@ class AsyncStream implements StreamInterface
 		$this->readable = false;
 		$this->writable = false;
 		$this->seekable = false;
-        $this->httpId = null;
+        $this->hyperId = null;
         self::$nonBlocking = [];
 
         return $resource;
@@ -307,17 +316,27 @@ class AsyncStream implements StreamInterface
         $handle =  $this->getResource();
         if ($this->isReadable() && ($handle !== null)) {
             $buffer = "";
+            $start = \microtime(true);
             while (!\feof($handle)) {
                 yield self::waitRead($handle);
                 $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
             }
 
+            $timer = \microtime(true) - $start;
             if (false !== $buffer) {
+                Hyper::addLoggerTask(yield \log_notice(
+                    'Http TaskId: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
+                    ['httpId' => $this->hyperId, 'url' => $this->uri, 'chunk' => \FETCH_CHUNK, 'timer' => $timer],
+                    \hyper_loggerName())
+                );
+
                 yield Coroutine::value($buffer);
             } else {
+                Hyper::addLoggerTask(yield \log_critical('Unable to get contents from underlying resource', \hyper_loggerName()));
                 throw new \RuntimeException('Unable to get contents from underlying resource');
             }
         } else {
+            Hyper::addLoggerTask(yield \log_critical('Underlying resource is not readable', \hyper_loggerName()));
             throw new \RuntimeException('Underlying resource is not readable');
         }
     }
@@ -339,11 +358,21 @@ class AsyncStream implements StreamInterface
         if ($length === 0) {
             yield Coroutine::value('');
         } else {
+            $start = \microtime(true);
             yield self::waitRead($handle);
             $contents = \fread($handle, $length);
+
+            $timer = \microtime(true) - $start;
             if (false !== $contents) {
+                Hyper::addLoggerTask(yield \log_notice(
+                    'Http TaskId: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
+                    ['httpId' => $this->hyperId, 'url' => $this->uri, 'chunk' => $length, 'timer' => $timer],
+                    \hyper_loggerName())
+                );
+
                 yield Coroutine::value($contents);
             } else {
+                Hyper::addLoggerTask(yield \log_critical('Unable to read from underlying resource', \hyper_loggerName()));
                 throw new \RuntimeException('Unable to read from underlying resource');
             }
         }
@@ -362,12 +391,21 @@ class AsyncStream implements StreamInterface
         // We can't know the size after writing anything
         $this->size = null;
 
+        $start = \microtime(true);
         yield self::waitWrite($handle);
         $written = \fwrite($handle, $string);
 
+        $timer = \microtime(true) - $start;
         if (false !== $written) {
+            Hyper::addLoggerTask(yield \log_notice(
+                'Http TaskId: {httpId} Response: {url} Written: {written} Took: {timer}ms',
+                ['httpId' => $this->hyperId, 'url' => $this->uri, 'written' => $written, 'timer' => $timer],
+                \hyper_loggerName())
+            );
+
             yield Coroutine::value($written);
         } else {
+            Hyper::addLoggerTask(yield \log_critical('Unable to write to underlying resource', \hyper_loggerName()));
             throw new \RuntimeException('Unable to write to underlying resource');
         }
     }

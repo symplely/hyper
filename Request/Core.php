@@ -6,9 +6,9 @@ use Async\Request\Hyper;
 use Async\Request\Request;
 use Async\Request\HyperInterface;
 use Async\Request\BodyInterface;
+use Psr\Log\LoggerInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\LoggerInterface;
 
 if(!\function_exists('mime_content_type')) {
     function mime_content_type($filename)
@@ -177,12 +177,14 @@ if (!\function_exists('hyper')) {
         if ($isRequest instanceof RequestInterface) {
             $httpFunction = \awaitAble([$http, 'selectSendRequest'], $isRequest);
         } elseif ($isRequest instanceof \Generator) {
-            global $__uriTag__;
+            global $__uri__, $__uriTag__;
             $httpFunction = $isRequest;
             if (isset($__uriTag__[$tag])
                 && $__uriTag__[$tag] instanceof HyperInterface
             ) {
                 $http = $__uriTag__[$tag];
+            } elseif ($__uri__ instanceof HyperInterface) {
+                $http = $__uri__;
             }
         } elseif (\is_array($isRequest)) {
             $method = \array_shift($isRequest);
@@ -192,6 +194,28 @@ if (!\function_exists('hyper')) {
         }
 
         return [$httpFunction, $http];
+    }
+
+	/**
+     * Sets the `Logger` instance by.
+	 */
+	function hyper_logger(?string $name = null): LoggerInterface
+	{
+        global $__uriLogName__;
+
+        $__uriLogName__ = empty($name) ? 'HyperLink' : $name;
+
+        return \logger_instance($__uriLogName__);
+    }
+
+	/**
+     * Return the global `Logger` instance name.
+	 */
+	function hyper_loggerName(): string
+	{
+        global $__uriLogName__;
+
+        return  empty($__uriLogName__) ? 'HyperLink' : $__uriLogName__;
     }
 
 	/**
@@ -301,35 +325,70 @@ if (!\function_exists('hyper')) {
 	/**
      * Creates an `Hyper` instance for global HTTP functions by.
 	 */
-	function http_instance(string $tag = null, LoggerInterface $logger = null, ?string $name = null): HyperInterface
+	function http_instance(string $tag = null): HyperInterface
 	{
-        global $__uri__, $__uriTag__;
+        global $__uri__, $__uriTag__, $__uriLogName__;
 
+        $logName = empty($__uriLogName__) ? null : $__uriLogName__;
         if (empty($tag)) {
-            $__uri__ = new Hyper($logger, $name);
+            $__uri__ = new Hyper($logName);
         } elseif (!isset($__uriTag__[$tag]) || !$__uriTag__[$tag] instanceof HyperInterface) {
-            $__uriTag__[$tag] = new Hyper($logger, $name);
+            $__uriTag__[$tag] = new Hyper($logName);
         }
 
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
     }
 
-	function http_logger(LoggerInterface $logger = null, ?string $name = null, ?string $tag = null): HyperInterface
-	{
-		return \http_instance($tag, $logger, $name);
-    }
-
-	function http_logs(): array
-	{
-		return Hyper::defaultLog();
-    }
-
 	/**
+     * Returns an array of the default Logs, if no Logger `writer` was set by.
+	 */
+	function http_defaultLog($tag = null): array
+	{
+        global $__uri__, $__uriTag__;
+
+        if (empty($tag) && $__uri__ instanceof HyperInterface) {
+            return $__uri__->defaultLog();
+        } elseif (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
+            return $__uriTag__[$tag]->defaultLog();
+        }
+
+        return [];
+    }
+
+    /**
+     * Wait for all pending logging tasks to commit.
+     */
+    function http_commitLogs()
+    {
+        $loggerId = Hyper::getLoggerTask();
+        $finishId = yield \gather($loggerId);
+        print_r($finishId);
+        //foreach($finishId as $id => $null) {
+        //    if (($key = \array_search($id, self::$loggerId, true)) !== false) {
+        //        unset($this->loggerId[$key]);
+        //    }
+        //}
+    }
+
+    /**
+     * return string array or printout of the default Logs by.
+     */
+    function print_defaultLog($tag = null, $return = false)
+    {
+        //yield \http_commitLogs();
+        foreach(\http_defaultLog($tag) as $output) {
+            $lines[] = ($return) ? $output : print $output.\EOL;
+        }
+
+        return $lines;
+    }
+
+    /**
 	 * - This function needs to be prefixed with `yield`
 	 */
 	function http_closeLog($tag = null)
 	{
-        global $__uri__, $__uriTag__;
+        global $__uri__, $__uriTag__, $__uriLogName__;
 
         if (empty($tag) && $__uri__ instanceof HyperInterface) {
             [, $name] = $__uri__->logger();
@@ -338,6 +397,9 @@ if (!\function_exists('hyper')) {
             [, $name] = $__uriTag__[$tag]->logger();
             yield \logger_shutdown($name);
         }
+
+        $__uriLogName__ = null;
+        unset($GLOBALS['__uriLogName__']);
 	}
 
 	/**
@@ -348,13 +410,13 @@ if (!\function_exists('hyper')) {
         global $__uri__, $__uriTag__;
 
         if ($tag instanceof HyperInterface) {
-            [, $stream] = $tag->getHyper();
+            [, $stream] = $tag->getRequestStream();
             if ($stream instanceof StreamInterface)
                 $stream->close();
             $tag->flush();
         } elseif (empty($tag)) {
             if ($__uri__ instanceof HyperInterface) {
-                [, $stream] = $__uri__->getHyper();
+                [, $stream] = $__uri__->getRequestStream();
                 if ($stream instanceof StreamInterface)
                     $stream->close();
                 $__uri__->flush();
@@ -364,7 +426,7 @@ if (!\function_exists('hyper')) {
             unset($GLOBALS['__uri__']);
         } else {
             if (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
-                [, $stream] = $__uriTag__[$tag]->getHyper();
+                [, $stream] = $__uriTag__[$tag]->getRequestStream();
                 if ($stream instanceof StreamInterface)
                     $stream->close();
                 $__uriTag__[$tag]->flush();
@@ -383,7 +445,7 @@ if (!\function_exists('hyper')) {
         global $__uri__, $__uriTag__;
 
         if ($__uri__ instanceof HyperInterface) {
-            [, $stream] = $__uri__->getHyper();
+            [, $stream] = $__uri__->getRequestStream();
             if ($stream instanceof StreamInterface)
                 $stream->close();
             $__uri__->flush();
@@ -394,7 +456,7 @@ if (!\function_exists('hyper')) {
             $uriTags = \array_keys($__uriTag__);
             foreach($uriTags as $key) {
                 if ($__uriTag__[$key] instanceof HyperInterface) {
-                    [, $stream] = $__uriTag__[$key]->getHyper();
+                    [, $stream] = $__uriTag__[$key]->getRequestStream();
                     if ($stream instanceof StreamInterface)
                         $stream->close();
                     $__uriTag__[$key]->flush();
@@ -639,8 +701,9 @@ if (!\function_exists('hyper')) {
      */
 	function response_instance($tag = null)
 	{
-        if ($tag instanceof ResponseInterface)
+        if ($tag instanceof ResponseInterface) {
             return $tag;
+        }
 
         global $__uriResponse__, $__uriResponseTag__, $__uri__, $__uriTag__;
 

@@ -17,7 +17,7 @@ interface HyperInterface extends RequestMethodInterface
      *
      * @return array
      */
-    public function getHyper(): array;
+    public function getRequestStream(): array;
 
 	/**
 	 * Controls how the `wait()` function operates.
@@ -168,4 +168,20 @@ interface HyperInterface extends RequestMethodInterface
      * @throws \Psr\Http\Client\ClientExceptionInterface If an error happens while processing the request.
      */
     public function sendRequest(RequestInterface $request);
+
+    /**
+     * Will auto retry sending an PSR-7 request with additional changeable attempts and timeout setting.
+     *
+     * @param RequestInterface $request
+     *
+     * @return ResponseInterface
+     *
+     * @throws \Psr\Http\Client\ClientExceptionInterface - If an error happens while processing the request.
+     */
+    public function selectSendRequest(
+        RequestInterface $request,
+        int $attempts = \RETRY_ATTEMPTS,
+        float $timeout = \RETRY_TIMEOUT,
+        bool $withTimeout = false
+    );
 }

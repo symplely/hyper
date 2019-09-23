@@ -6,7 +6,7 @@ namespace Async\Request;
 
 use Async\Request\AsyncStream;
 use Psr\Http\Message\StreamInterface;
-use Psr\Http\Message\MessageInterface;
+use Psr\Http\Message\RequestInterface;
 
 /**
  * Trait Message
@@ -28,6 +28,20 @@ trait MessageTrait
      * @var bool
      */
     protected $debug = false;
+
+    protected $httpId = null;
+
+	public function hyperId(?int $httpId)
+	{
+        $this->httpId = $httpId;
+
+        return $this;
+    }
+
+	public function getHyperId()
+	{
+        return $this->httpId;
+    }
 
     public function withOptions(array $options = [])
     {

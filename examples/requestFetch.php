@@ -51,6 +51,9 @@ function main() {
     } catch (Panicking $error) {
         echo 'There was a problem: '.$error->getMessage();
     }
+
+    yield \print_defaultLog();
+    yield \http_closeLog();
     yield \shutdown();
 }
 

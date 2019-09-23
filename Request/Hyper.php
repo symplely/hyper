@@ -14,9 +14,9 @@ use Async\Request\AsyncStream;
 use Async\Request\Body;
 use Async\Request\BodyInterface;
 use Async\Request\HyperInterface;
+use Async\Request\Exception\ClientException;
 use Async\Request\Exception\NetworkException;
 use Async\Request\Exception\RequestException;
-use Psr\Log\LoggerInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
@@ -58,7 +58,7 @@ class Hyper implements HyperInterface
     ];
 
     /**
-     * @var \Psr\Http\Message\StreamInterface
+     * @var StreamInterface
      */
     protected $stream = null;
 
@@ -80,34 +80,23 @@ class Hyper implements HyperInterface
     protected $logger = null;
     protected static $defaultLog = [];
     protected static $defaultLogger = false;
+    protected static $loggerTaskId = [];
 
     protected static $waitCount = 0;
     protected static $waitShouldError = true;
     protected static $waitAbortedCleared = true;
 
-    public function __construct(LoggerInterface $logger = null, ?string $name = null)
+    public function __construct(?string $loggerName = null)
     {
-        if (empty($name)) {
-            $path = \explode('\\', \get_called_class());
-            $name = \array_pop($path);
-        }
-
-        $this->loggerName = $name;
-
-        if (empty($logger)) {
-            $this->logger = \logger_instance($this->loggerName);
+        $this->loggerName = empty($loggerName) ? 'HyperLink' : $loggerName;
+        $this->logger = \hyper_logger($this->loggerName);
+        if (empty($loggerName)) {
             self::$defaultLogger = true;
             \logger_array(self::$defaultLog, 0xff, 1, null, $this->loggerName);
-        } else {
-            $this->logger = $logger;
-            self::$defaultLogger = false;
         }
     }
 
-    /**
-     * @inheritdoc
-     */
-	public function getHyper(): array
+	public function getRequestStream(): array
 	{
         $request = $this->request;
         $stream = $this->stream;
@@ -117,11 +106,16 @@ class Hyper implements HyperInterface
         return [$request, $stream];
     }
 
-	public function hyperId(int $httpId)
+	public function hyperId(?int $httpId)
 	{
         $this->httpId = $httpId;
 
         return $this;
+    }
+
+	public function getHyperId()
+	{
+        return $this->httpId;
     }
 
 	public function flush()
@@ -130,23 +124,36 @@ class Hyper implements HyperInterface
         $this->stream = null;
         $this->httpId = null;
         $this->timeout = \RETRY_TIMEOUT;
+
         $this->logger = null;
         $this->loggerName = '';
+        self::$loggerTaskId = [];
         self::$defaultLog = [];
         self::$defaultLogger = false;
+
         self::$waitCount = 0;
         self::$waitShouldError = true;
         self::$waitAbortedCleared = true;
     }
 
-	public function logger()
+	public function logger(): array
 	{
         return [$this->logger, $this->loggerName];
     }
 
-	public static function defaultLog(): array
+	public function defaultLog(): array
 	{
         return (self::$defaultLogger) ? self::$defaultLog : [];
+    }
+
+	public static function addLoggerTask(int $loggerId)
+	{
+        self::$loggerTaskId[] = $loggerId;
+    }
+
+	public static function getLoggerTask(): array
+	{
+        return self::$loggerTaskId;
     }
 
     /**
@@ -199,8 +206,14 @@ class Hyper implements HyperInterface
                     foreach($completeList as $id => $tasks) {
                         if (isset($httpList[$id])) {
                             $tasks->customState('ended');
-                            $tasks->getCustomData()->getHyper();
-                            $responses[$id] = $tasks->result();
+                            $tasks->getCustomData()->getRequestStream();
+                            $result = $tasks->result();
+                            $stream = $result->getBody();
+                            if ($stream instanceof \Async\Request\AsyncStream) {
+                                $stream = $stream->hyperId($id);
+                                $result = $result->withBody($stream);
+                            }
+                            $responses[$id] = $result;
                             $count--;
                             $waitCompleteCount++;
                             unset($httpList[$id]);
@@ -239,7 +252,7 @@ class Hyper implements HyperInterface
                                 }
                             } elseif ($tasks->completed()) {
                                 $tasks->customState('ended');
-                                $tasks->getCustomData()->getHyper();
+                                $tasks->getCustomData()->getRequestStream();
                                 $result = $tasks->result();
                                 if (\is_array($result)
                                     && (isset($result[0]) && $result[0] instanceof \Throwable)
@@ -255,6 +268,11 @@ class Hyper implements HyperInterface
                                         $coroutine->schedule($task);
                                     }
                                 } else {
+                                    $stream = $result->getBody();
+                                    if ($stream instanceof \Async\Request\AsyncStream) {
+                                        $stream = $stream->hyperId($id);
+                                        $result = $result->withBody($stream);
+                                    }
                                     $responses[$id] = $result;
                                     $count--;
                                     unset($taskList[$id]);
@@ -328,7 +346,7 @@ class Hyper implements HyperInterface
                     $taskList[$httpId]->customState('aborted');
                     $http = $taskList[$httpId]->getCustomData();
                     if ($http instanceof HyperInterface) {
-                        [, $stream] = $http->getHyper();
+                        [, $stream] = $http->getRequestStream();
                         if ($stream instanceof StreamInterface)
                             $stream->close();
                     }
@@ -353,7 +371,7 @@ class Hyper implements HyperInterface
             $list[$id]->customState('aborted');
             $http = $list[$id]->getCustomData();
             if ($http instanceof HyperInterface) {
-                [, $stream] = $http->getHyper();
+                [, $stream] = $http->getRequestStream();
                 if ($stream instanceof StreamInterface) {
                     $stream->close();
                }
@@ -372,17 +390,22 @@ class Hyper implements HyperInterface
         }
     }
 
-    public function selectSendRequest(RequestInterface $request, int $attempts = \RETRY_ATTEMPTS, float $timeout = \RETRY_TIMEOUT, bool $withTimeout = false)
+    public function selectSendRequest(
+        RequestInterface $request,
+        int $attempts = \RETRY_ATTEMPTS,
+        float $timeout = \RETRY_TIMEOUT,
+        bool $withTimeout = false
+    )
     {
         if ($attempts > 0) {
             $this->timeout = ($withTimeout) ? $timeout : \REQUEST_TIMEOUT;
             try {
                 $response = yield $this->sendRequest(($withTimeout) ? $request->withOptions(['timeout' => $timeout]) : $request->withOptions(['timeout' => \REQUEST_TIMEOUT]));
-            } catch (RequestException $requestError) {
+            } catch (ClientException $requestError) {
                 if (\strpos($requestError->getMessage(), 'failed')) {
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
-                    yield \log_debug(
+                    self::$loggerTaskId[] = yield \log_debug(
                         'Retry: {attempts} Timeout: {timeout} Exception: {exception}',
                         [ 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
@@ -390,6 +413,12 @@ class Hyper implements HyperInterface
 
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
+                    self::$loggerTaskId[] = yield \log_error(
+                        'Timeout: {timeout} Exception: {exception}',
+                        [ 'timeout' =>  $timeout, 'exception' => $requestError],
+                        $this->loggerName
+                    );
+
                     throw $requestError;
                 }
             }
@@ -619,8 +648,8 @@ class Hyper implements HyperInterface
                 $e = new RequestException($request, $error, 0);
             }
 
-            yield \log_error(
-                'In: {timer}ms Timeout: {timeout} Exception: {exception}',
+            self::$loggerTaskId[] = yield \log_error(
+                'failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
                 ['timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
                 $this->loggerName
             );
@@ -631,7 +660,7 @@ class Hyper implements HyperInterface
                 return [$e, $this->httpId];
             }
         } else {
-            yield \log_info(
+            self::$loggerTaskId[] = yield \log_info(
                 'Request: {method} {url} Timeout: {timeout} Took: {timer}ms',
                 ['method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
                 $this->loggerName
@@ -643,9 +672,9 @@ class Hyper implements HyperInterface
                 if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
                     $stream->close();
                     $e = new RequestException($request, \error_get_last()['message'], 0);
-                    yield \log_warning(
+                    self::$loggerTaskId[] = yield \log_warning(
                         'Request: {method} {url} Unset: {timeout} Exception: {exception}',
-                        [ 'method' => $method, 'url' => $url, 'timeout' =>  ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
+                        ['method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
                         $this->loggerName
                     );
 
