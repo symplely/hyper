@@ -173,24 +173,19 @@ if (!\function_exists('hyper')) {
             $tag = null;
         }
 
-        $http = \http_instance($tag);
+        $http = \http_create($tag);
         if ($isRequest instanceof RequestInterface) {
             $httpFunction = \awaitAble([$http, 'selectSendRequest'], $isRequest);
         } elseif ($isRequest instanceof \Generator) {
-            global $__uri__, $__uriTag__;
             $httpFunction = $isRequest;
-            if (isset($__uriTag__[$tag])
-                && $__uriTag__[$tag] instanceof HyperInterface
-            ) {
-                $http = $__uriTag__[$tag];
-            } elseif ($__uri__ instanceof HyperInterface) {
-                $http = $__uri__;
-            }
+            if (\http_instance($tag) instanceof HyperInterface)
+                $http = \http_instance($tag);
         } elseif (\is_array($isRequest)) {
             $method = \array_shift($isRequest);
             $url = \array_shift($isRequest);
             $data = \array_shift($isRequest);
             $httpFunction = \http_function($method, $url, $data, $isRequest);
+            $http = \http_instance($tag);
         }
 
         return [$httpFunction, $http];
@@ -325,7 +320,7 @@ if (!\function_exists('hyper')) {
 	/**
      * Creates an `Hyper` instance for global HTTP functions by.
 	 */
-	function http_instance(string $tag = null): HyperInterface
+	function http_create(string $tag = null): HyperInterface
 	{
         global $__uri__, $__uriTag__, $__uriLogName__;
 
@@ -340,34 +335,38 @@ if (!\function_exists('hyper')) {
     }
 
 	/**
+     * Return the global HTTP function `Hyper` instance by.
+	 */
+	function http_instance(string $tag = null): ?HyperInterface
+	{
+        global $__uri__, $__uriTag__;
+
+		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
+    }
+
+	/**
      * Returns an array of the default Logs, if no Logger `writer` was set by.
 	 */
 	function http_defaultLog($tag = null): array
 	{
-        global $__uri__, $__uriTag__;
-
-        if (empty($tag) && $__uri__ instanceof HyperInterface) {
-            return $__uri__->defaultLog();
-        } elseif (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
-            return $__uriTag__[$tag]->defaultLog();
-        }
+        if (\http_instance($tag) instanceof HyperInterface)
+            return \http_instance($tag)->defaultLog();
 
         return [];
     }
 
     /**
      * Wait for all pending logging tasks to commit.
+     * @todo
      */
-    function http_commitLogs()
+    function http_commitLogs($tag = null)
     {
-        $loggerId = Hyper::getLoggerTask();
-        $finishId = yield \gather($loggerId);
-        print_r($finishId);
-        //foreach($finishId as $id => $null) {
-        //    if (($key = \array_search($id, self::$loggerId, true)) !== false) {
-        //        unset($this->loggerId[$key]);
-        //    }
-        //}
+        $loggerId = \http_instance($tag)->getLoggerTask();
+
+        if (!empty($loggerId) && \is_array($loggerId)) {
+            $finishId = yield \gather($loggerId);
+            \http_instance($tag)->resetLoggerTask($finishId);
+        }
     }
 
     /**
@@ -375,7 +374,7 @@ if (!\function_exists('hyper')) {
      */
     function print_defaultLog($tag = null, $return = false)
     {
-        //yield \http_commitLogs();
+        //yield \http_commitLogs($tag);
         foreach(\http_defaultLog($tag) as $output) {
             $lines[] = ($return) ? $output : print $output.\EOL;
         }
@@ -388,15 +387,10 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_closeLog($tag = null)
 	{
-        global $__uri__, $__uriTag__, $__uriLogName__;
+        global $__uriLogName__;
 
-        if (empty($tag) && $__uri__ instanceof HyperInterface) {
-            [, $name] = $__uri__->logger();
-            yield \logger_shutdown($name);
-        } elseif (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
-            [, $name] = $__uriTag__[$tag]->logger();
-            yield \logger_shutdown($name);
-        }
+        [, $name] = \http_instance($tag)->logger();
+        yield \logger_shutdown($name);
 
         $__uriLogName__ = null;
         unset($GLOBALS['__uriLogName__']);
@@ -414,26 +408,22 @@ if (!\function_exists('hyper')) {
             if ($stream instanceof StreamInterface)
                 $stream->close();
             $tag->flush();
-        } elseif (empty($tag)) {
-            if ($__uri__ instanceof HyperInterface) {
-                [, $stream] = $__uri__->getRequestStream();
-                if ($stream instanceof StreamInterface)
-                    $stream->close();
-                $__uri__->flush();
-            }
-
-            $__uri__ = null;
-            unset($GLOBALS['__uri__']);
         } else {
-            if (isset($__uriTag__[$tag]) && $__uriTag__[$tag] instanceof HyperInterface) {
-                [, $stream] = $__uriTag__[$tag]->getRequestStream();
-                if ($stream instanceof StreamInterface)
-                    $stream->close();
-                $__uriTag__[$tag]->flush();
-            }
+            [, $stream] = \http_instance($tag)->getRequestStream();
+            if ($stream instanceof StreamInterface)
+                $stream->close();
 
-            $__uriTag__[$tag] = null;
-            unset($GLOBALS['__uriTag__'][$tag]);
+            if (empty($tag)) {
+                if ($__uri__ instanceof HyperInterface)
+                    $__uri__->flush();
+                $__uri__ = null;
+                unset($GLOBALS['__uri__']);
+            } elseif (isset($__uriTag__[$tag])) {
+                if ($__uriTag__[$tag] instanceof HyperInterface)
+                    $__uriTag__[$tag] ->flush();
+                $__uriTag__[$tag] = null;
+                unset($GLOBALS['__uriTag__'][$tag]);
+            }
         }
     }
 
@@ -596,10 +586,10 @@ if (!\function_exists('hyper')) {
         if (\strpos($tag, '://') !== false) {
             $url = $tag;
             $tag = null;
-            $instance = \http_instance($tag);
+            $instance = \http_create($tag);
         } elseif (!empty($authorizeHeaderOptions)) {
             $url = \array_shift($authorizeHeaderOptions);
-            $instance = \http_instance($tag);
+            $instance = \http_create($tag);
         } else {
             return null;
         }

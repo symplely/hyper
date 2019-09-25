@@ -146,14 +146,39 @@ class Hyper implements HyperInterface
         return (self::$defaultLogger) ? self::$defaultLog : [];
     }
 
+    /**
+     * For tracking, add logger tasks ids to array
+     *
+     * @return array
+     */
 	public static function addLoggerTask(int $loggerId)
 	{
         self::$loggerTaskId[] = $loggerId;
     }
 
-	public static function getLoggerTask(): array
+    /**
+     * Return current logger tasks list
+     *
+     * @return array
+     */
+	public function getLoggerTask(): array
 	{
         return self::$loggerTaskId;
+    }
+
+    /**
+     * Remove finish logger tasks from current logger tasks list.
+     * @todo
+     */
+	public function resetLoggerTask(array $finishId = null)
+	{
+        if (!empty($finishId)) {
+            foreach($finishId as $id => $null) {
+                if (($key = \array_search($id, self::$loggerTaskId, true)) !== false) {
+                    unset($this->loggerTaskId[$key]);
+                }
+            }
+        }
     }
 
     /**
