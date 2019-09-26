@@ -80,7 +80,6 @@ class Hyper implements HyperInterface
     protected $logger = null;
     protected static $defaultLog = [];
     protected static $defaultLogger = false;
-    protected static $loggerTaskId = [];
 
     protected static $waitCount = 0;
     protected static $waitShouldError = true;
@@ -127,7 +126,6 @@ class Hyper implements HyperInterface
 
         $this->logger = null;
         $this->loggerName = '';
-        self::$loggerTaskId = [];
         self::$defaultLog = [];
         self::$defaultLogger = false;
 
@@ -144,41 +142,6 @@ class Hyper implements HyperInterface
 	public function defaultLog(): array
 	{
         return (self::$defaultLogger) ? self::$defaultLog : [];
-    }
-
-    /**
-     * For tracking, add logger tasks ids to array
-     *
-     * @return array
-     */
-	public static function addLoggerTask(int $loggerId)
-	{
-        self::$loggerTaskId[] = $loggerId;
-    }
-
-    /**
-     * Return current logger tasks list
-     *
-     * @return array
-     */
-	public function getLoggerTask(): array
-	{
-        return self::$loggerTaskId;
-    }
-
-    /**
-     * Remove finish logger tasks from current logger tasks list.
-     * @todo
-     */
-	public function resetLoggerTask(array $finishId = null)
-	{
-        if (!empty($finishId)) {
-            foreach($finishId as $id => $null) {
-                if (($key = \array_search($id, self::$loggerTaskId, true)) !== false) {
-                    unset($this->loggerTaskId[$key]);
-                }
-            }
-        }
     }
 
     /**
@@ -430,7 +393,7 @@ class Hyper implements HyperInterface
                 if (\strpos($requestError->getMessage(), 'failed')) {
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
-                    self::$loggerTaskId[] = yield \log_debug(
+                    yield \log_debug(
                         'Retry: {attempts} Timeout: {timeout} Exception: {exception}',
                         [ 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
@@ -438,7 +401,7 @@ class Hyper implements HyperInterface
 
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
-                    self::$loggerTaskId[] = yield \log_error(
+                    yield \log_error(
                         'Timeout: {timeout} Exception: {exception}',
                         [ 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
@@ -673,7 +636,7 @@ class Hyper implements HyperInterface
                 $e = new RequestException($request, $error, 0);
             }
 
-            self::$loggerTaskId[] = yield \log_error(
+            yield \log_error(
                 'failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
                 ['timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
                 $this->loggerName
@@ -685,7 +648,7 @@ class Hyper implements HyperInterface
                 return [$e, $this->httpId];
             }
         } else {
-            self::$loggerTaskId[] = yield \log_info(
+            yield \log_info(
                 'Request: {method} {url} Timeout: {timeout} Took: {timer}ms',
                 ['method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
                 $this->loggerName
@@ -697,7 +660,7 @@ class Hyper implements HyperInterface
                 if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
                     $stream->close();
                     $e = new RequestException($request, \error_get_last()['message'], 0);
-                    self::$loggerTaskId[] = yield \log_warning(
+                    yield \log_warning(
                         'Request: {method} {url} Unset: {timeout} Exception: {exception}',
                         ['method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
                         $this->loggerName

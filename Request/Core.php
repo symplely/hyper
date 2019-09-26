@@ -355,26 +355,14 @@ if (!\function_exists('hyper')) {
         return [];
     }
 
-    /**
-     * Wait for all pending logging tasks to commit.
-     * @todo
-     */
-    function http_commitLogs($tag = null)
-    {
-        $loggerId = \http_instance($tag)->getLoggerTask();
-
-        if (!empty($loggerId) && \is_array($loggerId)) {
-            $finishId = yield \gather($loggerId);
-            \http_instance($tag)->resetLoggerTask($finishId);
-        }
-    }
 
     /**
      * return string array or printout of the default Logs by.
      */
     function print_defaultLog($tag = null, $return = false)
     {
-        //yield \http_commitLogs($tag);
+        [, $name] = \http_instance($tag)->logger();
+        yield \logger_commit($name);
         foreach(\http_defaultLog($tag) as $output) {
             $lines[] = ($return) ? $output : print $output.\EOL;
         }
@@ -390,6 +378,7 @@ if (!\function_exists('hyper')) {
         global $__uriLogName__;
 
         [, $name] = \http_instance($tag)->logger();
+        //yield \logger_commit($name);
         yield \logger_shutdown($name);
 
         $__uriLogName__ = null;
