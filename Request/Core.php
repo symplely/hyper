@@ -282,7 +282,6 @@ if (!\function_exists('hyper')) {
 		return Hyper::cancel($httpId);
     }
 
-
 	/**
      * Helper function, shouldn't be called directly.
      *
@@ -337,8 +336,12 @@ if (!\function_exists('hyper')) {
 	/**
      * Return the global HTTP function `Hyper` instance by.
 	 */
-	function http_instance(string $tag = null): ?HyperInterface
+	function http_instance($tag = null): ?HyperInterface
 	{
+        if ($tag instanceof HyperInterface) {
+            return $tag;
+        }
+
         global $__uri__, $__uriTag__;
 
 		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
@@ -354,7 +357,6 @@ if (!\function_exists('hyper')) {
 
         return [];
     }
-
 
     /**
      * return string array or printout of the default Logs by.
@@ -378,7 +380,6 @@ if (!\function_exists('hyper')) {
         global $__uriLogName__;
 
         [, $name] = \http_instance($tag)->logger();
-        //yield \logger_commit($name);
         yield \logger_shutdown($name);
 
         $__uriLogName__ = null;
@@ -386,33 +387,34 @@ if (!\function_exists('hyper')) {
 	}
 
 	/**
-     * Clear & Close `Hyper`, and `StreamInterface` Instances by.
+     * Clear & Close global `http_` Instance by.
 	 */
 	function http_clear($tag = null)
 	{
         global $__uri__, $__uriTag__;
 
-        if ($tag instanceof HyperInterface) {
-            [, $stream] = $tag->getRequestStream();
-            if ($stream instanceof StreamInterface)
-                $stream->close();
-            $tag->flush();
-        } else {
-            [, $stream] = \http_instance($tag)->getRequestStream();
+        \http_flush($tag);
+        if (empty($tag)) {
+            $__uri__ = null;
+            unset($GLOBALS['__uri__']);
+        } elseif (!$tag instanceof HyperInterface && isset($__uriTag__[$tag])) {
+            $__uriTag__[$tag] = null;
+            unset($GLOBALS['__uriTag__'][$tag]);
+        }
+    }
+
+	/**
+     * Close `Hyper`, and `Stream` Instance by.
+	 */
+    function http_flush($tag = null)
+    {
+        $hyper = \http_instance($tag);
+        if ($hyper instanceof HyperInterface) {
+            [, $stream] = $hyper->getRequestStream();
             if ($stream instanceof StreamInterface)
                 $stream->close();
 
-            if (empty($tag)) {
-                if ($__uri__ instanceof HyperInterface)
-                    $__uri__->flush();
-                $__uri__ = null;
-                unset($GLOBALS['__uri__']);
-            } elseif (isset($__uriTag__[$tag])) {
-                if ($__uriTag__[$tag] instanceof HyperInterface)
-                    $__uriTag__[$tag] ->flush();
-                $__uriTag__[$tag] = null;
-                unset($GLOBALS['__uriTag__'][$tag]);
-            }
+            $hyper->flush();
         }
     }
 
@@ -423,24 +425,14 @@ if (!\function_exists('hyper')) {
 	{
         global $__uri__, $__uriTag__;
 
-        if ($__uri__ instanceof HyperInterface) {
-            [, $stream] = $__uri__->getRequestStream();
-            if ($stream instanceof StreamInterface)
-                $stream->close();
-            $__uri__->flush();
-        }
+        \http_flush($__uri__);
+        $__uri__ = null;
         unset($GLOBALS['__uri__']);
 
         if (\is_array($__uriTag__)) {
             $uriTags = \array_keys($__uriTag__);
             foreach($uriTags as $key) {
-                if ($__uriTag__[$key] instanceof HyperInterface) {
-                    [, $stream] = $__uriTag__[$key]->getRequestStream();
-                    if ($stream instanceof StreamInterface)
-                        $stream->close();
-                    $__uriTag__[$key]->flush();
-                }
-
+                \http_flush($key);
                 $__uriTag__[$key] = null;
                 unset($GLOBALS['__uriTag__'][$key]);
             }
@@ -616,7 +608,22 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * Clear global functions response instance by.
+     * Close response stream instance by.
+     *
+     * @param \ResponseInterface|mixed $tag
+     */
+    function response_close($tag = null)
+    {
+        try {
+            $stream = \response_instance($tag);
+            if ($stream instanceof ResponseInterface)
+                $stream->getBody()->close();
+        } catch(\Exception $e) {
+        }
+    }
+
+    /**
+     * Clear, close global functions response instance by.
      *
      * @param \ResponseInterface|mixed $tag
      */
@@ -624,18 +631,11 @@ if (!\function_exists('hyper')) {
 	{
         global $__uriResponse__, $__uriResponseTag__;
 
-        if ($tag instanceof ResponseInterface) {
-            $tag->getBody()->close();
-        } elseif (empty($tag)) {
-            if ($__uriResponse__ instanceof ResponseInterface)
-                $__uriResponse__->getBody()->close();
-
+        \response_close($tag);
+        if (empty($tag)) {
             $__uriResponse__ = null;
             unset($GLOBALS['__uriResponse__']);
-        } elseif (isset($__uriResponseTag__[$tag])){
-            if ($__uriResponseTag__[$tag] instanceof ResponseInterface)
-                $__uriResponseTag__[$tag]->getBody()->close();
-
+        } elseif (isset($__uriResponseTag__[$tag])) {
             $__uriResponseTag__[$tag] = null;
             unset($GLOBALS['__uriResponseTag__'][$tag]);
         }
@@ -650,18 +650,14 @@ if (!\function_exists('hyper')) {
 	{
         global $__uriResponse__, $__uriResponseTag__;
 
-        if ($__uriResponse__ instanceof ResponseInterface)
-            $__uriResponse__->getBody()->close();
-
+        \response_close($__uriResponse__);
         $__uriResponse__ = null;
         unset($GLOBALS['__uriResponse__']);
 
         if (\is_array($__uriResponseTag__)) {
             $uriResponseTags = \array_keys($__uriResponseTag__);
             foreach($uriResponseTags as $key) {
-                if ($__uriResponseTag__[$key] instanceof ResponseInterface)
-                    $__uriResponseTag__[$key]->getBody()->close();
-
+                \response_close($key);
                 $__uriResponseTag__[$key] = null;
                 unset($GLOBALS['__uriResponseTag__'][$key]);
             }
