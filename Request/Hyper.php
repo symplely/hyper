@@ -105,14 +105,14 @@ class Hyper implements HyperInterface
         return [$request, $stream];
     }
 
-	public function hyperId(?int $httpId)
+	public function setId(?int $httpId)
 	{
         $this->httpId = $httpId;
 
         return $this;
     }
 
-	public function getHyperId()
+	public function getId()
 	{
         return $this->httpId;
     }
@@ -198,7 +198,7 @@ class Hyper implements HyperInterface
                             $result = $tasks->result();
                             $stream = $result->getBody();
                             if ($stream instanceof \Async\Request\AsyncStream) {
-                                $stream = $stream->hyperId($id);
+                                $stream = $stream->setId($id);
                                 $result = $result->withBody($stream);
                             }
                             $responses[$id] = $result;
@@ -258,7 +258,7 @@ class Hyper implements HyperInterface
                                 } else {
                                     $stream = $result->getBody();
                                     if ($stream instanceof \Async\Request\AsyncStream) {
-                                        $stream = $stream->hyperId($id);
+                                        $stream = $stream->setId($id);
                                         $result = $result->withBody($stream);
                                     }
                                     $responses[$id] = $result;
@@ -310,16 +310,7 @@ class Hyper implements HyperInterface
      */
 	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper)
 	{
-		return new Kernel(
-			function(TaskInterface $task, Coroutine $coroutine) use ($httpFunction, $hyper) {
-                $httpId = $coroutine->createTask($httpFunction);
-                $taskList = $coroutine->taskList();
-				$taskList[$httpId]->customState('beginning');
-                $taskList[$httpId]->customData($hyper->hyperId($httpId));
-                $task->sendValue($httpId);
-				$coroutine->schedule($task);
-			}
-		);
+		return Kernel::await($httpFunction, 'beginning', $hyper);
     }
 
     /**
@@ -671,7 +662,7 @@ class Hyper implements HyperInterface
             }
 
             $headers = \stream_get_meta_data($resource)['wrapper_data'];
-            $this->stream = $stream->hyperId($this->httpId);
+            $this->stream = $stream->setId($this->httpId);
 
             if ($option['follow_location']) {
                 $headers = $this->filterResponseHeaders($headers);

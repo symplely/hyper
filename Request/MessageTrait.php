@@ -6,7 +6,6 @@ namespace Async\Request;
 
 use Async\Request\AsyncStream;
 use Psr\Http\Message\StreamInterface;
-use Psr\Http\Message\RequestInterface;
 
 /**
  * Trait Message
@@ -31,14 +30,14 @@ trait MessageTrait
 
     protected $httpId = null;
 
-	public function hyperId(?int $httpId)
+	public function setId(?int $httpId)
 	{
         $this->httpId = $httpId;
 
         return $this;
     }
 
-	public function getHyperId()
+	public function getId()
 	{
         return $this->httpId;
     }

@@ -109,14 +109,14 @@ class AsyncStream implements StreamInterface
         $this->resource = $resource;
     }
 
-	public function hyperId(?int $hyperId)
+	public function setId(?int $hyperId)
 	{
         $this->hyperId = $hyperId;
 
         return $this;
     }
 
-	public function getHyperId()
+	public function getId()
 	{
         return $this->httpId;
     }
