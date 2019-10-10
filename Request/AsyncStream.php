@@ -288,26 +288,6 @@ class AsyncStream implements StreamInterface
         return true;
     }
 
-	public static function waitRead($streamSocket)
-	{
-		return new Kernel(
-			function(TaskInterface $task, Coroutine $coroutine) use ($streamSocket) {
-				$coroutine->addReader($streamSocket, $task);
-				$coroutine->schedule($task);
-			}
-		);
-    }
-
-	public static function waitWrite($streamSocket)
-	{
-		return new Kernel(
-			function(TaskInterface $task, Coroutine $coroutine) use ($streamSocket) {
-				$coroutine->addWriter($streamSocket, $task);
-				$coroutine->schedule($task);
-			}
-		);
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -318,7 +298,7 @@ class AsyncStream implements StreamInterface
             $buffer = "";
             $start = \microtime(true);
             while (!\feof($handle)) {
-                yield self::waitRead($handle);
+                yield Kernel::readWait($handle, true);
                 $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
             }
 
@@ -359,7 +339,7 @@ class AsyncStream implements StreamInterface
             yield Coroutine::value('');
         } else {
             $start = \microtime(true);
-            yield self::waitRead($handle);
+            yield Kernel::readWait($handle, true);
             $contents = \fread($handle, $length);
 
             $timer = \microtime(true) - $start;
@@ -392,7 +372,7 @@ class AsyncStream implements StreamInterface
         $this->size = null;
 
         $start = \microtime(true);
-        yield self::waitWrite($handle);
+        yield Kernel::writeWait($handle, true);
         $written = \fwrite($handle, $string);
 
         $timer = \microtime(true) - $start;
@@ -560,11 +540,11 @@ class AsyncStream implements StreamInterface
 
 		self::setNonBlocking($copy);
         while (!\feof($resource)) {
-			yield Kernel::readWait($resource);
+			yield Kernel::readWait($resource, true);
 			$data = \stream_get_contents($resource, \FETCH_CHUNK);
             $count = \strlen($data);
             if ($count) {
-				yield Kernel::writeWait($copy);
+				yield Kernel::writeWait($copy, true);
 				$result = \fwrite($copy, $data);
 				if (false === $result) {
 					throw new \RuntimeException('Unable to write to underlying resource');
@@ -616,7 +596,7 @@ class AsyncStream implements StreamInterface
 
 		while (!$stream->eof()) {
 			$data = yield $stream->read(1048576);
-			yield Kernel::writeWait($resource);
+			yield Kernel::writeWait($resource, true);
 			\fwrite($resource, $data);
 		}
 
