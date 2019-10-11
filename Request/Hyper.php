@@ -95,16 +95,6 @@ class Hyper implements HyperInterface
         }
     }
 
-	public function getRequestStream(): array
-	{
-        $request = $this->request;
-        $stream = $this->stream;
-        $this->stream = null;
-        $this->request = null;
-
-        return [$request, $stream];
-    }
-
 	public function setId(?int $httpId)
 	{
         $this->httpId = $httpId;
@@ -117,6 +107,14 @@ class Hyper implements HyperInterface
         return $this->httpId;
     }
 
+    public function close()
+    {
+        if ($this->stream instanceof StreamInterface)
+            $this->stream->close();
+
+        $this->flush();
+    }
+
 	public function flush()
 	{
         $this->request = null;
@@ -126,8 +124,6 @@ class Hyper implements HyperInterface
 
         $this->logger = null;
         $this->loggerName = '';
-        self::$defaultLog = [];
-        self::$defaultLogger = false;
 
         self::$waitCount = 0;
         self::$waitShouldError = true;
@@ -142,6 +138,12 @@ class Hyper implements HyperInterface
 	public function defaultLog(): array
 	{
         return (self::$defaultLogger) ? self::$defaultLog : [];
+    }
+
+	public function resetLog()
+	{
+        self::$defaultLog = [];
+        self::$defaultLogger = false;
     }
 
     /**
@@ -194,13 +196,17 @@ class Hyper implements HyperInterface
                     foreach($completeList as $id => $tasks) {
                         if (isset($httpList[$id])) {
                             $tasks->customState('ended');
-                            $tasks->getCustomData()->getRequestStream();
+                            $hyper = $tasks->getCustomData();
+                            if ($hyper instanceof HyperInterface)
+                                $hyper->flush();
+
                             $result = $tasks->result();
                             $stream = $result->getBody();
                             if ($stream instanceof \Async\Request\AsyncStream) {
                                 $stream = $stream->setId($id);
                                 $result = $result->withBody($stream);
                             }
+
                             $responses[$id] = $result;
                             $count--;
                             $waitCompleteCount++;
@@ -240,7 +246,10 @@ class Hyper implements HyperInterface
                                 }
                             } elseif ($tasks->completed()) {
                                 $tasks->customState('ended');
-                                $tasks->getCustomData()->getRequestStream();
+                                $hyper = $tasks->getCustomData();
+                                if ($hyper instanceof HyperInterface)
+                                    $hyper->flush();
+
                                 $result = $tasks->result();
                                 if (\is_array($result)
                                     && (isset($result[0]) && $result[0] instanceof \Throwable)
@@ -261,6 +270,7 @@ class Hyper implements HyperInterface
                                         $stream = $stream->setId($id);
                                         $result = $result->withBody($stream);
                                     }
+
                                     $responses[$id] = $result;
                                     $count--;
                                     unset($taskList[$id]);
@@ -322,15 +332,8 @@ class Hyper implements HyperInterface
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
                 $taskList = $coroutine->taskList();
 				if (isset($taskList[$httpId])) {
-                    $taskList[$httpId]->customState('aborted');
-                    $http = $taskList[$httpId]->getCustomData();
-                    if ($http instanceof HyperInterface) {
-                        [, $stream] = $http->getRequestStream();
-                        if ($stream instanceof StreamInterface)
-                            $stream->close();
-                    }
-
 					$task->sendValue($coroutine->cancelTask($httpId));
+                    $taskList[$httpId]->customState('aborted');
 					$coroutine->schedule($task);
 				} else {
 					throw new \InvalidArgumentException(\BAD_ID);
@@ -339,7 +342,8 @@ class Hyper implements HyperInterface
 		);
     }
 
-    protected static function updateList(Coroutine $coroutine,
+    protected static function updateList(
+        Coroutine $coroutine,
         int $id,
         array $list = [],
         bool $abort = false,
@@ -348,23 +352,20 @@ class Hyper implements HyperInterface
 	{
         if ($abort && isset($list[$id])) {
             $list[$id]->customState('aborted');
-            $http = $list[$id]->getCustomData();
-            if ($http instanceof HyperInterface) {
-                [, $stream] = $http->getRequestStream();
-                if ($stream instanceof StreamInterface) {
-                    $stream->close();
-               }
-            }
+            $hyper = $list[$id]->getCustomData();
+            if ($hyper instanceof HyperInterface)
+                $hyper->close();
         }
 
         if ($cancel) {
             $coroutine->cancelTask($id);
         } else {
-            if (empty($list) || $forceUpdate) {
+            if (empty($list) || $forceUpdate)
                 $list = $coroutine->completedList();
-            }
+
             if (isset($list[$id]))
                 unset($list[$id]);
+
             $coroutine->updateCompleted($list);
         }
     }
@@ -578,7 +579,7 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public function sendRequest(RequestInterface $request)
+    public function sendRequest(RequestInterface $request) // Can't use `ResponseInterface` return type, cause method contains `yield`
     {
         $option = self::OPTIONS;
         $method = $request->getMethod();

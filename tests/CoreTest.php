@@ -296,9 +296,11 @@ class CoreTest extends TestCase
             }
         }
 
+        \response_clear('pipe');
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage(\BAD_CALL);
         $this->assertSame(true, (yield \response_json('pipe'))->success);
-        $this->assertEquals(Response::STATUS_OK, \response_code('pipe'));
-        \http_clear('pipe');
+        \http_clear();
     }
 
     public function testRequestDelete()

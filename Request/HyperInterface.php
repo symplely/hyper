@@ -12,12 +12,9 @@ use Fig\Http\Message\RequestMethodInterface;
 interface HyperInterface extends RequestMethodInterface
 {
     /**
-     * Returns the created `Request` and `Stream` instances.
-     * This is mainly used for memory management and to cancel/abort failed requests.
-     *
-     * @return array
+     * Flush/close properties state, along with the stored `Stream` and `Request` instances.
      */
-    public function getRequestStream(): array;
+    public function close();
 
 	/**
 	 * Controls how the `wait()` function operates.
@@ -167,7 +164,7 @@ interface HyperInterface extends RequestMethodInterface
      *
      * @throws \Psr\Http\Client\ClientExceptionInterface If an error happens while processing the request.
      */
-    public function sendRequest(RequestInterface $request);
+    public function sendRequest(RequestInterface $request); // Can't use `ResponseInterface` return type, cause method contains `yield`
 
     /**
      * Will auto retry sending an PSR-7 request with additional changeable attempts and timeout setting.

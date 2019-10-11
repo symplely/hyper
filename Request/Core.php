@@ -352,14 +352,25 @@ if (!\function_exists('hyper')) {
 	 */
 	function http_defaultLog($tag = null): array
 	{
-        if (\http_instance($tag) instanceof HyperInterface)
-            return \http_instance($tag)->defaultLog();
+        $hyper = \http_instance($tag);
+        if ($hyper instanceof HyperInterface)
+            return $hyper->defaultLog();
 
         return [];
     }
 
+	/**
+     * Clear default Logs by.
+	 */
+	function reset_defaultLog($tag = null)
+	{
+        $hyper = \http_instance($tag);
+        if ($hyper instanceof HyperInterface)
+            $hyper->resetLog();
+    }
+
     /**
-     * return string array or printout of the default Logs by.
+     * Returns string array or printout of the default Logs by.
      */
     function print_defaultLog($tag = null, $return = false)
     {
@@ -404,22 +415,19 @@ if (!\function_exists('hyper')) {
     }
 
 	/**
-     * Close `Hyper`, and `Stream` Instance by.
+     * Flush/Close `Hyper` properties state, along with the stored `Stream` and `Request` instances.
 	 */
     function http_flush($tag = null)
     {
         $hyper = \http_instance($tag);
         if ($hyper instanceof HyperInterface) {
-            [, $stream] = $hyper->getRequestStream();
-            if ($stream instanceof StreamInterface)
-                $stream->close();
-
-            $hyper->flush();
+            $hyper->close();
+            $hyper->resetLog();
         }
     }
 
 	/**
-     * Close and Clear `ALL` global Hyper function, Stream instances.
+     * Close/Clear out `ALL` global `Hyper` function, `Stream` instances.
 	 */
 	function http_nuke()
 	{
