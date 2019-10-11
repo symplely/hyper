@@ -332,8 +332,8 @@ class Hyper implements HyperInterface
 			function(TaskInterface $task, Coroutine $coroutine) use ($httpId) {
                 $taskList = $coroutine->taskList();
 				if (isset($taskList[$httpId])) {
-					$task->sendValue($coroutine->cancelTask($httpId));
                     $taskList[$httpId]->customState('aborted');
+					$task->sendValue($coroutine->cancelTask($httpId));
 					$coroutine->schedule($task);
 				} else {
 					throw new \InvalidArgumentException(\BAD_ID);
