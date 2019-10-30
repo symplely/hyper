@@ -67,28 +67,28 @@ class Body extends BufferStream implements BodyInterface, PartInterface
      */
     public function __construct(string $bodyType = '', $data = '', $content = null, $extra = null)
     {
-		switch (\strtolower($bodyType)) {
-			case self::XML:
-				$this->xml($data, $content);
-				break;
-			case self::JSON:
-				$this->json($data, $content);
-				break;
-			case self::FORM:
-				$this->form($data, $content);
-				break;
-			case self::FILE:
-				$this->file($data, $content, $extra);
-				break;
-			case self::MULTI:
-				$this->multi($data, $content);
+        switch (\strtolower($bodyType)) {
+            case self::XML:
+                $this->xml($data, $content);
+                break;
+            case self::JSON:
+                $this->json($data, $content);
+                break;
+            case self::FORM:
+                $this->form($data, $content);
+                break;
+            case self::FILE:
+                $this->file($data, $content, $extra);
+                break;
+            case self::MULTI:
+                $this->multi($data, $content);
                 break;
             default:
                 $this->buffer = $bodyType;
                 if (\strpos($data, '/') !== false)
                     $this->contentType = $data;
                 break;
-		}
+        }
     }
 
     public static function create(string $bodyType = '', $data = '', $content = null, $extra = null)
@@ -113,7 +113,7 @@ class Body extends BufferStream implements BodyInterface, PartInterface
     {
         $this->buffer = (string) \json_encode($data);
         $this->type = self::JSON;
-		$this->contentType = empty($contentType) ? self::JSON_TYPE : $contentType;
+        $this->contentType = empty($contentType) ? self::JSON_TYPE : $contentType;
     }
 
     /**
@@ -123,7 +123,7 @@ class Body extends BufferStream implements BodyInterface, PartInterface
     {
         $this->buffer = \http_build_query($data, 'n', '&', \PHP_QUERY_RFC1738);
         $this->type = self::FORM;
-		$this->contentType = empty($contentType) ? self::FORM_TYPE : $contentType;
+        $this->contentType = empty($contentType) ? self::FORM_TYPE : $contentType;
     }
 
     /**
@@ -157,13 +157,13 @@ class Body extends BufferStream implements BodyInterface, PartInterface
         // Create a random boundary name for each multipart request.
         $this->boundary = \uniqid('Symplely') . 'Z';
         $this->type = self::MULTI;
-		$this->contentType = empty($contentType) ? self::MULTI_TYPE : $contentType;
+        $this->contentType = empty($contentType) ? self::MULTI_TYPE : $contentType;
 
         /**
          * @var string $name
          * @var PartInterface $part
          */
-        foreach($parts as $name => $part) {
+        foreach ($parts as $name => $part) {
             if (!\is_string($name)) {
                 throw new \Exception('Please provide a name for each part of a Multipart request.');
             }
@@ -187,8 +187,8 @@ class Body extends BufferStream implements BodyInterface, PartInterface
      */
     public function getContentType()
     {
-		if ($this->contentType == 'multipart/form-data')
-			return "{$this->contentType};boundary={$this->boundary}";
+        if ($this->contentType == 'multipart/form-data')
+            return "{$this->contentType};boundary={$this->boundary}";
 
         return $this->contentType;
     }
@@ -199,30 +199,30 @@ class Body extends BufferStream implements BodyInterface, PartInterface
     public function getMultiPart(string $boundary, string $name)
     {
         $multipart = '';
-		switch ($this->type) {
-			case self::FORM:
-				return $this->formMultiPart($boundary, $name);
+        switch ($this->type) {
+            case self::FORM:
+                return $this->formMultiPart($boundary, $name);
             case self::FILE:
                 if ($this->usingBuffer === true)
                     return $this->fileMultiPart($boundary, $name);
 
                 return $this->asyncMultiPart($boundary, $name);
             case self::XML:
-			case self::JSON:
-			default:
+            case self::JSON:
+            default:
                 $multipart .= "\r\n--{$boundary}\r\n";
                 $multipart .= "Content-Disposition: form-data; name=\"{$name}\"\r\n";
                 $multipart .= "Content-Type: {$this->getContentType()}\r\n\r\n";
                 $multipart .= $this->buffer;
-				break;
-		}
+                break;
+        }
 
         return $multipart;
     }
 
-	/**
-	 * Format a key => value pair array into a Form Urlencoded string.
-	 */
+    /**
+     * Format a key => value pair array into a Form Urlencoded string.
+     */
     protected function formMultiPart(string $boundary, ?string $name = null): string
     {
         // Convert the form data back into an array
@@ -239,9 +239,9 @@ class Body extends BufferStream implements BodyInterface, PartInterface
         return $multiPart;
     }
 
-	/**
-	 * Useable only within in a MultpartFormBody.
-	 */
+    /**
+     * Useable only within in a MultpartFormBody.
+     */
     protected function fileMultiPart(string $boundary, string $name)
     {
         // Rewind the stream, just in case we're at the end.

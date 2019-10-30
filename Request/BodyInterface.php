@@ -10,18 +10,18 @@ interface BodyInterface
 {
     // Content types for header data.
     const HTML_TYPE = 'text/html';
-	const OCTET_TYPE = 'application/octet-stream';
-	const XML_TYPE = 'application/xml';
-	const PLAIN_TYPE = 'text/plain';
-	const MULTI_TYPE = 'multipart/form-data';
-	const JSON_TYPE = 'application/json';
-	const FORM_TYPE = 'application/x-www-form-urlencoded';
+    const OCTET_TYPE = 'application/octet-stream';
+    const XML_TYPE = 'application/xml';
+    const PLAIN_TYPE = 'text/plain';
+    const MULTI_TYPE = 'multipart/form-data';
+    const JSON_TYPE = 'application/json';
+    const FORM_TYPE = 'application/x-www-form-urlencoded';
 
     // Body construct types for body part.
-	const XML = '_xml_';
-	const JSON = '_json_';
-	const FORM = '_form_';
-	const FILE = '_file_';
+    const XML = '_xml_';
+    const JSON = '_json_';
+    const FORM = '_form_';
+    const FILE = '_file_';
     const MULTI = '_multi_';
 
     /**
@@ -34,7 +34,7 @@ interface BodyInterface
      */
     public function xml(string $data = "", string $contentType = null);
 
-	/**
+    /**
      * Json Body constructor.
      *
      * @param array $data
@@ -50,7 +50,7 @@ interface BodyInterface
      */
     public function form(array $data, string $contentType = null);
 
-	/**
+    /**
      * File Body constructor
      *
      * @param StreamInterface|string $file StreamInterface instance of file or the full path of file to open.

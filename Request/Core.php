@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 use Async\Request\Hyper;
 use Async\Request\Request;
@@ -10,7 +10,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
-if(!\function_exists('mime_content_type')) {
+if (!\function_exists('mime_content_type')) {
     function mime_content_type($filename)
     {
         $mime_types = array(
@@ -134,32 +134,32 @@ if(!\function_exists('mime_content_type')) {
 }
 
 if (!\function_exists('hyper')) {
-	\define('SYMPLELY_USER_AGENT', 'Symplely Hyper PHP/' . \PHP_VERSION);
+    \define('SYMPLELY_USER_AGENT', 'Symplely Hyper PHP/' . \PHP_VERSION);
 
     // Content types for header data.
-	\define('TYPE_HTML', BodyInterface::HTML_TYPE);
-	\define('TYPE_OCTET', BodyInterface::OCTET_TYPE);
-	\define('TYPE_XML', BodyInterface::XML_TYPE);
-	\define('TYPE_PLAIN', BodyInterface::PLAIN_TYPE);
-	\define('TYPE_MULTI', BodyInterface::MULTI_TYPE);
-	\define('TYPE_JSON', BodyInterface::JSON_TYPE);
+    \define('TYPE_HTML', BodyInterface::HTML_TYPE);
+    \define('TYPE_OCTET', BodyInterface::OCTET_TYPE);
+    \define('TYPE_XML', BodyInterface::XML_TYPE);
+    \define('TYPE_PLAIN', BodyInterface::PLAIN_TYPE);
+    \define('TYPE_MULTI', BodyInterface::MULTI_TYPE);
+    \define('TYPE_JSON', BodyInterface::JSON_TYPE);
     \define('TYPE_FORM', BodyInterface::FORM_TYPE);
 
-	\define('BAD_CALL', "Invalid call on null, no `request` or `response` instance found!");
-	\define('BAD_ACCESS', "Invalid access, only HTTP `task` ID's allowed!");
+    \define('BAD_CALL', "Invalid call on null, no `request` or `response` instance found!");
+    \define('BAD_ACCESS', "Invalid access, only HTTP `task` ID's allowed!");
     \define('BAD_ID', "Invalid HTTP `task` ID!");
 
-	\define('FETCH_CHUNK', 4096);
-	\define('RETRY_ATTEMPTS', 10);
-	\define('RETRY_TIMEOUT', .5); // will be multiplied by RETRY_MULTIPLY
-	\define('RETRY_MULTIPLY', 1.5);
-	\define('REQUEST_TIMEOUT', .3);
+    \define('FETCH_CHUNK', 4096);
+    \define('RETRY_ATTEMPTS', 10);
+    \define('RETRY_TIMEOUT', .5); // will be multiplied by RETRY_MULTIPLY
+    \define('RETRY_MULTIPLY', 1.5);
+    \define('REQUEST_TIMEOUT', .3);
 
-	/**
+    /**
      * Helper function, shouldn't be called directly.
      *
-	 * - This function otherwise needs to be prefixed with `yield`
-	 */
+     * - This function otherwise needs to be prefixed with `yield`
+     */
     function hyper(): array
     {
         $args = \func_get_args();
@@ -168,7 +168,7 @@ if (!\function_exists('hyper')) {
             $tag = $isRequest;
             $isRequest = \array_shift($args);
             if (!empty($args))
-                 $isRequest = \array_shift($args);
+                $isRequest = \array_shift($args);
         } else {
             $tag = null;
         }
@@ -191,11 +191,11 @@ if (!\function_exists('hyper')) {
         return [$httpFunction, $http];
     }
 
-	/**
+    /**
      * Sets the `Logger` instance by.
-	 */
-	function hyper_logger(?string $name = null): LoggerInterface
-	{
+     */
+    function hyper_logger(?string $name = null): LoggerInterface
+    {
         global $__uriLogName__;
 
         $__uriLogName__ = empty($name) ? 'HyperLink' : $name;
@@ -203,36 +203,36 @@ if (!\function_exists('hyper')) {
         return \logger_instance($__uriLogName__);
     }
 
-	/**
+    /**
      * Return the global `Logger` instance name.
-	 */
-	function hyper_loggerName(): string
-	{
+     */
+    function hyper_loggerName(): string
+    {
         global $__uriLogName__;
 
         return  empty($__uriLogName__) ? 'HyperLink' : $__uriLogName__;
     }
 
-	/**
+    /**
      * This function works similar to `gatherOptions()`.
-	 * Controls how the `fetch()` function operates.
+     * Controls how the `fetch()` function operates.
      * `fetch()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
-	 *
-	 * @param int $count - Will wait for count to complete, `0` (default) All.
-	 * @param bool $exception - If `true` (default), immediately propagated
+     *
+     * @param int $count - Will wait for count to complete, `0` (default) All.
+     * @param bool $exception - If `true` (default), immediately propagated
      * to the task that `yield`ed on wait(). Other awaitables will continue to run.
-	 * - If `false`, exceptions are treated the same as successful response results,
+     * - If `false`, exceptions are treated the same as successful response results,
      * and aggregated in the response list.
      * @param bool $clearAborted - If `true` (default), close/cancel/abort remaining result/responses
      *
-	 * @throws \LengthException - If the number of HTTP tasks less than the desired $count.
-	 */
+     * @throws \LengthException - If the number of HTTP tasks less than the desired $count.
+     */
     function fetchOptions(int $count = 0, bool $exception = true, bool $clearAborted = true)
     {
         Hyper::waitOptions($count, $exception, $clearAborted);
     }
 
-	/**
+    /**
      * This function works similar to `gather()`.
      * Takes an array of request HTTP task id's.
      * Will pause current task and continue other tasks until
@@ -241,14 +241,14 @@ if (!\function_exists('hyper')) {
      * @return array<ResponseInterface>
      * @throws \Exception - if not an HTTP task id
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function fetch(...$requests)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function fetch(...$requests)
+    {
         return Hyper::wait(...$requests);
     }
 
-	/**
+    /**
      * This function works similar to `await()`
      * Will resolve to an Response instance when `fetch()`
      * Will immediately return an `int`, and continue to the next instruction.
@@ -263,32 +263,32 @@ if (!\function_exists('hyper')) {
      *
      * @return int HTTP task id
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function request()
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function request()
+    {
         $requests = \func_get_args();
         [$httpFunction, $http] = \hyper(...$requests);
         return Hyper::awaitable($httpFunction, $http);
     }
 
-	/**
+    /**
      * This function works similar to `cancel_task()`.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function request_abort(int $httpId)
-	{
-		return Hyper::cancel($httpId);
+     * - This function needs to be prefixed with `yield`
+     */
+    function request_abort(int $httpId)
+    {
+        return Hyper::cancel($httpId);
     }
 
-	/**
+    /**
      * Helper function, shouldn't be called directly.
      *
-	 * - This function otherwise needs to be prefixed with `yield`
-	 */
-	function http_function(string $method, string $url, $data = [], ...$authorizeHeaderOptions): \Generator
-	{
+     * - This function otherwise needs to be prefixed with `yield`
+     */
+    function http_function(string $method, string $url, $data = [], ...$authorizeHeaderOptions): \Generator
+    {
         switch (\strtoupper($method)) {
             case Request::METHOD_PUT:
                 $httpFunction = \http_put($url, $data, $authorizeHeaderOptions);
@@ -316,11 +316,11 @@ if (!\function_exists('hyper')) {
         return $httpFunction;
     }
 
-	/**
+    /**
      * Creates an `Hyper` instance for global HTTP functions by.
-	 */
-	function http_create(string $tag = null): HyperInterface
-	{
+     */
+    function http_create(string $tag = null): HyperInterface
+    {
         global $__uri__, $__uriTag__, $__uriLogName__;
 
         $logName = empty($__uriLogName__) ? null : $__uriLogName__;
@@ -330,28 +330,28 @@ if (!\function_exists('hyper')) {
             $__uriTag__[$tag] = new Hyper($logName);
         }
 
-		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
+        return empty($tag) ? $__uri__ : $__uriTag__[$tag];
     }
 
-	/**
+    /**
      * Return the global HTTP function `Hyper` instance by.
-	 */
-	function http_instance($tag = null): ?HyperInterface
-	{
+     */
+    function http_instance($tag = null): ?HyperInterface
+    {
         if ($tag instanceof HyperInterface) {
             return $tag;
         }
 
         global $__uri__, $__uriTag__;
 
-		return empty($tag) ? $__uri__ : $__uriTag__[$tag];
+        return empty($tag) ? $__uri__ : $__uriTag__[$tag];
     }
 
-	/**
+    /**
      * Returns an array of the default Logs, if no Logger `writer` was set by.
-	 */
-	function http_defaultLog($tag = null): array
-	{
+     */
+    function http_defaultLog($tag = null): array
+    {
         $hyper = \http_instance($tag);
         if ($hyper instanceof HyperInterface)
             return $hyper->defaultLog();
@@ -359,11 +359,11 @@ if (!\function_exists('hyper')) {
         return [];
     }
 
-	/**
+    /**
      * Clear default Logs by.
-	 */
-	function reset_defaultLog($tag = null)
-	{
+     */
+    function reset_defaultLog($tag = null)
+    {
         $hyper = \http_instance($tag);
         if ($hyper instanceof HyperInterface)
             $hyper->resetLog();
@@ -376,18 +376,18 @@ if (!\function_exists('hyper')) {
     {
         [, $name] = \http_instance($tag)->logger();
         yield \logger_commit($name);
-        foreach(\http_defaultLog($tag) as $output) {
-            $lines[] = ($return) ? $output : print $output.\EOL;
+        foreach (\http_defaultLog($tag) as $output) {
+            $lines[] = ($return) ? $output : print $output . \EOL;
         }
 
         return $lines;
     }
 
     /**
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_closeLog($tag = null)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_closeLog($tag = null)
+    {
         global $__uriLogName__;
 
         [, $name] = \http_instance($tag)->logger();
@@ -395,13 +395,13 @@ if (!\function_exists('hyper')) {
 
         $__uriLogName__ = null;
         unset($GLOBALS['__uriLogName__']);
-	}
+    }
 
-	/**
+    /**
      * Clear & Close global `http_` Instance by.
-	 */
-	function http_clear($tag = null)
-	{
+     */
+    function http_clear($tag = null)
+    {
         global $__uri__, $__uriTag__;
 
         \http_flush($tag);
@@ -414,9 +414,9 @@ if (!\function_exists('hyper')) {
         }
     }
 
-	/**
+    /**
      * Flush/Close `Hyper` properties state, along with the stored `Stream` and `Request` instances.
-	 */
+     */
     function http_flush($tag = null)
     {
         $hyper = \http_instance($tag);
@@ -426,11 +426,11 @@ if (!\function_exists('hyper')) {
         }
     }
 
-	/**
+    /**
      * Close/Clear out `ALL` global `Hyper` function, `Stream` instances.
-	 */
-	function http_nuke()
-	{
+     */
+    function http_nuke()
+    {
         global $__uri__, $__uriTag__;
 
         \http_flush($__uri__);
@@ -439,38 +439,38 @@ if (!\function_exists('hyper')) {
 
         if (\is_array($__uriTag__)) {
             $uriTags = \array_keys($__uriTag__);
-            foreach($uriTags as $key) {
+            foreach ($uriTags as $key) {
                 \http_flush($key);
                 $__uriTag__[$key] = null;
                 unset($GLOBALS['__uriTag__'][$key]);
             }
         }
-	}
+    }
 
-	/**
+    /**
      * Make a GET request, will pause current task, and
      * continue other tasks until an response is received.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_get(string $tagUri = null, ...$authorizeHeaderOptions)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_get(string $tagUri = null, ...$authorizeHeaderOptions)
+    {
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             return yield \response_set(yield $instance->get($url, $option), $tag);
         }
 
         return false;
-	}
+    }
 
-	/**
+    /**
      * Make a PUT request, will pause current task, and
      * continue other tasks until an response is received.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_put(string $tagUri = null, ...$authorizeHeaderOptions)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_put(string $tagUri = null, ...$authorizeHeaderOptions)
+    {
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -478,16 +478,16 @@ if (!\function_exists('hyper')) {
         }
 
         return false;
-	}
+    }
 
-	/**
+    /**
      * Make a DELETE request, will pause current task, and
      * continue other tasks until an response is received.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_delete(string $tagUri = null, ...$authorizeHeaderOptions)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_delete(string $tagUri = null, ...$authorizeHeaderOptions)
+    {
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -495,16 +495,16 @@ if (!\function_exists('hyper')) {
         }
 
         return false;
-	}
+    }
 
-	/**
+    /**
      * Make a POST request, will pause current task, and
      * continue other tasks until an response is received.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_post(string $tagUri = null, ...$authorizeHeaderOptions)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_post(string $tagUri = null, ...$authorizeHeaderOptions)
+    {
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -512,16 +512,16 @@ if (!\function_exists('hyper')) {
         }
 
         return false;
-	}
+    }
 
-	/**
+    /**
      * Make a PATCH request, will pause current task, and
      * continue other tasks until an response is received.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_patch(string $tagUri = null, ...$authorizeHeaderOptions)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_patch(string $tagUri = null, ...$authorizeHeaderOptions)
+    {
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             $data = \array_shift($option);
@@ -529,32 +529,32 @@ if (!\function_exists('hyper')) {
         }
 
         return false;
-	}
+    }
 
-	/**
+    /**
      * Make a OPTIONS request, will pause current task, and
      * continue other tasks until an response is received.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_options(string $tagUri = null, ...$authorizeHeaderOptions)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_options(string $tagUri = null, ...$authorizeHeaderOptions)
+    {
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             return yield \response_set(yield $instance->options($url, $option), $tag);
         }
 
         return false;
-	}
+    }
 
-	/**
+    /**
      * Make a HEAD request, will pause current task, and
      * continue other tasks until an response is received.
      *
-	 * - This function needs to be prefixed with `yield`
-	 */
-	function http_head(string $tagUri = null, ...$authorizeHeaderOptions)
-	{
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_head(string $tagUri = null, ...$authorizeHeaderOptions)
+    {
         [$tag, $url, $instance, $option] = \createTagAndSplit($tagUri, $authorizeHeaderOptions);
         if (isset($instance) && $instance instanceof HyperInterface) {
             return yield \response_set(yield $instance->head($url, $option), $tag);
@@ -563,12 +563,12 @@ if (!\function_exists('hyper')) {
         return false;
     }
 
-	/**
+    /**
      * Helper function, shouldn't be called directly.
-	 */
+     */
     function createTagAndSplit($tag, $authorizeHeaderOptions = [])
     {
-		if (empty($tag))
+        if (empty($tag))
             return false;
 
         $instance = null;
@@ -586,12 +586,11 @@ if (!\function_exists('hyper')) {
         return [$tag, $url, $instance, $authorizeHeaderOptions];
     }
 
-	/**
+    /**
      * Placeholder for future use.
-	 */
-	function response()
-	{
-    }
+     */
+    function response()
+    { }
 
     /**
      * Set global functions response instance by.
@@ -600,8 +599,8 @@ if (!\function_exists('hyper')) {
      *
      * @return \ResponseInterface
      */
-	function response_set($response, string $tag = null)
-	{
+    function response_set($response, string $tag = null)
+    {
         if ($response instanceof ResponseInterface) {
             global $__uriResponse__, $__uriResponseTag__;
 
@@ -626,8 +625,7 @@ if (!\function_exists('hyper')) {
             $stream = \response_instance($tag);
             if ($stream instanceof ResponseInterface)
                 $stream->getBody()->close();
-        } catch(\Exception $e) {
-        }
+        } catch (\Exception $e) { }
     }
 
     /**
@@ -635,8 +633,8 @@ if (!\function_exists('hyper')) {
      *
      * @param \ResponseInterface|mixed $tag
      */
-	function response_clear($tag = null)
-	{
+    function response_clear($tag = null)
+    {
         global $__uriResponse__, $__uriResponseTag__;
 
         \response_close($tag);
@@ -654,8 +652,8 @@ if (!\function_exists('hyper')) {
      *
      * @param \ResponseInterface|mixed $tag
      */
-	function response_nuke()
-	{
+    function response_nuke()
+    {
         global $__uriResponse__, $__uriResponseTag__;
 
         \response_close($__uriResponse__);
@@ -664,7 +662,7 @@ if (!\function_exists('hyper')) {
 
         if (\is_array($__uriResponseTag__)) {
             $uriResponseTags = \array_keys($__uriResponseTag__);
-            foreach($uriResponseTags as $key) {
+            foreach ($uriResponseTags as $key) {
                 \response_close($key);
                 $__uriResponseTag__[$key] = null;
                 unset($GLOBALS['__uriResponseTag__'][$key]);
@@ -682,8 +680,8 @@ if (!\function_exists('hyper')) {
      * @return  \ResponseInterface|null
      * @throws \Exception - if no response instance set
      */
-	function response_instance($tag = null)
-	{
+    function response_instance($tag = null)
+    {
         if ($tag instanceof ResponseInterface) {
             return $tag;
         }
@@ -720,8 +718,8 @@ if (!\function_exists('hyper')) {
      * @return bool|null
      * @throws \Exception - if no response instance set
      */
-	function response_ok($tag = null): ?bool
-	{
+    function response_ok($tag = null): ?bool
+    {
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
 
@@ -738,8 +736,8 @@ if (!\function_exists('hyper')) {
      * @return string|null
      * @throws \Exception - if no response instance set
      */
-	function response_phrase($tag = null): ?string
-	{
+    function response_phrase($tag = null): ?string
+    {
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
 
@@ -756,8 +754,8 @@ if (!\function_exists('hyper')) {
      * @return int|null
      * @throws \Exception - if no response instance set
      */
-	function response_code($tag = null): ?int
-	{
+    function response_code($tag = null): ?int
+    {
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
 
@@ -775,8 +773,8 @@ if (!\function_exists('hyper')) {
      * @return bool|null
      * @throws \Exception - if no response instance set
      */
-	function response_has($tag = null, string $header): ?bool
-	{
+    function response_has($tag = null, string $header): ?bool
+    {
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
 
@@ -794,8 +792,8 @@ if (!\function_exists('hyper')) {
      * @return string|null
      * @throws \Exception - if no response instance set
      */
-	function response_header($tag = null, string $header): ?string
-	{
+    function response_header($tag = null, string $header): ?string
+    {
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
 
@@ -805,15 +803,15 @@ if (!\function_exists('hyper')) {
     /**
      * Response full body.
      *
-	 * - This function needs to be prefixed with `yield`
+     * - This function needs to be prefixed with `yield`
      *
      * @param \ResponseInterface|mixed $tag
      *
      * @return mixed
      * @throws \Exception - if no response instance set
-	 */
-	function response_body($tag = null)
-	{
+     */
+    function response_body($tag = null)
+    {
         if (($response = \response_instance($tag)) === null)
             \panic(\BAD_CALL);
 
@@ -829,9 +827,9 @@ if (!\function_exists('hyper')) {
      *
      * @return bool
      * @throws \Exception - if no response instance set
-	 */
-	function response_eof($tag = null)
-	{
+     */
+    function response_eof($tag = null)
+    {
         if (($response = \response_instance($tag)) === null)
             return null; // Not ready, yield on null.
 
@@ -841,16 +839,16 @@ if (!\function_exists('hyper')) {
     /**
      * Response STREAM body.
      *
-	 * - This function needs to be prefixed with `yield`
+     * - This function needs to be prefixed with `yield`
      *
      * @param \ResponseInterface|mixed $tag
      * @param int $size
      *
      * @return mixed
      * @throws \Exception - if no response instance set
-	 */
-	function response_stream($tag = null, $size = 8192)
-	{
+     */
+    function response_stream($tag = null, $size = 8192)
+    {
         if (($response = \response_instance($tag)) === null)
             \panic(\BAD_CALL);
 
@@ -865,9 +863,9 @@ if (!\function_exists('hyper')) {
      *
      * @return string|array
      * @throws \Exception - if no response instance set
-	 */
-	function response_meta($tag = null, $key = null)
-	{
+     */
+    function response_meta($tag = null, $key = null)
+    {
         if (($response = \response_instance($tag)) === null)
             \panic(\BAD_CALL);
 
@@ -877,7 +875,7 @@ if (!\function_exists('hyper')) {
     /**
      * Response JSON body.
      *
-	 * - This function needs to be prefixed with `yield`
+     * - This function needs to be prefixed with `yield`
      *
      * @param $tag
      * @param bool|null $assoc
@@ -895,7 +893,7 @@ if (!\function_exists('hyper')) {
     /**
      * Response XML body.
      *
-	 * - This function needs to be prefixed with `yield`
+     * - This function needs to be prefixed with `yield`
      *
      * @param $tag
      * @param bool|null $assoc

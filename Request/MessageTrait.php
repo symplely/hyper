@@ -30,16 +30,11 @@ trait MessageTrait
 
     protected $httpId = null;
 
-	public function setId(?int $httpId)
-	{
+    public function taskId(?int $httpId)
+    {
         $this->httpId = $httpId;
 
         return $this;
-    }
-
-	public function getId()
-	{
-        return $this->httpId;
     }
 
     public function withOptions(array $options = [])

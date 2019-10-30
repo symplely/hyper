@@ -19,7 +19,7 @@ class AsyncStream implements StreamInterface
 {
     /**
      * @var string[]
-    */
+     */
     private const WRITABLE_MODES = ['r+', 'w', 'w+', 'a', 'a+', 'x', 'x+', 'c', 'c+'];
 
     /**
@@ -34,34 +34,34 @@ class AsyncStream implements StreamInterface
      */
     private $resource;
 
-	/**
-	 * @var bool
-	 */
-	private $seekable;
+    /**
+     * @var bool
+     */
+    private $seekable;
 
-	/**
-	 * @var bool
-	 */
-	private $readable;
+    /**
+     * @var bool
+     */
+    private $readable;
 
-	/**
-	 * @var bool
-	 */
+    /**
+     * @var bool
+     */
     private $writable;
 
-	/**
-	 * @var string|null
-	 */
-	private $uri;
+    /**
+     * @var string|null
+     */
+    private $uri;
 
-	/**
-	 * @var int|null
-	 */
+    /**
+     * @var int|null
+     */
     private $size;
 
-	/**
-	 * @var int
-	 */
+    /**
+     * @var int
+     */
     private $hyperId;
 
     protected static $nonBlocking = [];
@@ -84,12 +84,12 @@ class AsyncStream implements StreamInterface
             );
         }
 
-		$meta = $this->getMetadata();
+        $meta = $this->getMetadata();
 
-		$this->uri      = $meta['uri'] ?? null;
-		$this->seekable = $meta['seekable'];
-		$this->writable = $this->isWritable();
-		$this->readable = $this->isReadable();
+        $this->uri      = $meta['uri'] ?? null;
+        $this->seekable = $meta['seekable'];
+        $this->writable = $this->isWritable();
+        $this->readable = $this->isReadable();
     }
 
     /**
@@ -109,16 +109,11 @@ class AsyncStream implements StreamInterface
         $this->resource = $resource;
     }
 
-	public function setId(?int $hyperId)
-	{
+    public function taskId(?int $hyperId)
+    {
         $this->hyperId = $hyperId;
 
         return $this;
-    }
-
-	public function getId()
-	{
-        return $this->httpId;
     }
 
     /**
@@ -227,18 +222,17 @@ class AsyncStream implements StreamInterface
      */
     public function __toString()
     {
-		if ($this->getResource() === null) {
-			return '';
+        if ($this->getResource() === null) {
+            return '';
         }
 
         try {
-			if ($this->seekable) {
-				$this->seek(0);
+            if ($this->seekable) {
+                $this->seek(0);
             }
 
             return $this->getContents();
-        } catch (\Exception $e) {
-        }
+        } catch (\Exception $e) { }
 
         return '';
     }
@@ -250,8 +244,8 @@ class AsyncStream implements StreamInterface
     {
         $handle = $this->detach();;
 
-		if(\is_resource($handle)) {
-			\fclose($handle);
+        if (\is_resource($handle)) {
+            \fclose($handle);
         }
     }
 
@@ -265,9 +259,9 @@ class AsyncStream implements StreamInterface
         $this->resource = null;
         $this->size = null;
         $this->uri = null;
-		$this->readable = false;
-		$this->writable = false;
-		$this->seekable = false;
+        $this->readable = false;
+        $this->writable = false;
+        $this->seekable = false;
         $this->hyperId = null;
         self::$nonBlocking = [];
 
@@ -331,7 +325,7 @@ class AsyncStream implements StreamInterface
             throw new \RuntimeException('Stream is not readable');
         }
 
-        if($length < 0) {
+        if ($length < 0) {
             throw new \RuntimeException('Length parameter cannot be negative');
         }
 
@@ -511,61 +505,61 @@ class AsyncStream implements StreamInterface
         return new self($resource);
     }
 
-	/**
-	 * @param resource $resource
+    /**
+     * @param resource $resource
      * @param resource|null $copy
-	 *
-	 * @return StreamInterface
+     *
+     * @return StreamInterface
      * @throws \InvalidArgumentException for not an resource.
      * @throws \RuntimeException for unable to write to underlying resource.
-	 */
-	public static function copyResource($resource, $copy = null)
-	{
-		if (!\is_resource($resource)) {
-			throw new \InvalidArgumentException('Not resource.');
-		}
+     */
+    public static function copyResource($resource, $copy = null)
+    {
+        if (!\is_resource($resource)) {
+            throw new \InvalidArgumentException('Not resource.');
+        }
 
-		if (\stream_get_meta_data($resource)['seekable']) {
-			\rewind($resource);
-		}
+        if (\stream_get_meta_data($resource)['seekable']) {
+            \rewind($resource);
+        }
 
-		if (empty($copy)) {
-			$copy = \fopen('php://temp', 'rb+');
-		}
+        if (empty($copy)) {
+            $copy = \fopen('php://temp', 'rb+');
+        }
 
-		self::setNonBlocking($resource);
-		if (!\is_resource($copy)) {
-			throw new \InvalidArgumentException('Not resource.');
-		}
+        self::setNonBlocking($resource);
+        if (!\is_resource($copy)) {
+            throw new \InvalidArgumentException('Not resource.');
+        }
 
-		self::setNonBlocking($copy);
+        self::setNonBlocking($copy);
         while (!\feof($resource)) {
-			yield Kernel::readWait($resource, true);
-			$data = \stream_get_contents($resource, \FETCH_CHUNK);
+            yield Kernel::readWait($resource, true);
+            $data = \stream_get_contents($resource, \FETCH_CHUNK);
             $count = \strlen($data);
             if ($count) {
-				yield Kernel::writeWait($copy, true);
-				$result = \fwrite($copy, $data);
-				if (false === $result) {
-					throw new \RuntimeException('Unable to write to underlying resource');
-				}
+                yield Kernel::writeWait($copy, true);
+                $result = \fwrite($copy, $data);
+                if (false === $result) {
+                    throw new \RuntimeException('Unable to write to underlying resource');
+                }
             }
         };
 
-		$stream = new self($copy);
-		$stream->rewind();
+        $stream = new self($copy);
+        $stream->rewind();
 
-		return $stream;
-	}
+        return $stream;
+    }
 
-	/**
+    /**
      * @param resource $source
      * @param resource $destination
-	 *
-	 * @return StreamInterface
+     *
+     * @return StreamInterface
      * @throws \InvalidArgumentException for not an resource.
      * @throws \RuntimeException for unable to write to underlying resource.
-	 */
+     */
     public static function pipe($source, $destination): StreamInterface
     {
         return self::copyResource($source, $destination);
@@ -582,30 +576,30 @@ class AsyncStream implements StreamInterface
      * @link http://tools.ietf.org/html/rfc1952
      * @link http://php.net/manual/en/filters.compression.php
      *
-	 * @param StreamInterface $stream
-	 *
-	 * @return StreamInterface
+     * @param StreamInterface $stream
+     *
+     * @return StreamInterface
      */
-	public static function inflate(StreamInterface $stream)
-	{
-		$stream->rewind();
+    public static function inflate(StreamInterface $stream)
+    {
+        $stream->rewind();
 
-		yield $stream->read(10);
+        yield $stream->read(10);
 
-		$resource = \fopen('php://temp', 'rb+');
+        $resource = \fopen('php://temp', 'rb+');
 
-		while (!$stream->eof()) {
-			$data = yield $stream->read(1048576);
-			yield Kernel::writeWait($resource, true);
-			\fwrite($resource, $data);
-		}
+        while (!$stream->eof()) {
+            $data = yield $stream->read(1048576);
+            yield Kernel::writeWait($resource, true);
+            \fwrite($resource, $data);
+        }
 
-		\fseek($resource, 0);
+        \fseek($resource, 0);
 
-		\stream_filter_append($resource, "zlib.inflate", \STREAM_FILTER_READ);
+        \stream_filter_append($resource, "zlib.inflate", \STREAM_FILTER_READ);
 
-		return self::copyResource($resource);
-	}
+        return self::copyResource($resource);
+    }
 
     /**
      * Returns a pair of connected domain stream socket resources.
@@ -630,11 +624,11 @@ class AsyncStream implements StreamInterface
         return [self::setNonBlocking($sockets[0]), self::setNonBlocking($sockets[1])];
     }
 
-	public static function setNonBlocking($socket)
+    public static function setNonBlocking($socket)
     {
-		self::$nonBlocking[(int)$socket] = true;
+        self::$nonBlocking[(int) $socket] = true;
         if (!\stream_set_blocking($socket, false)) {
-			self::$nonBlocking[(int)$socket] = false;
+            self::$nonBlocking[(int) $socket] = false;
         }
 
         \stream_set_read_buffer($socket, 0);

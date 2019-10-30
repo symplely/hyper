@@ -95,16 +95,11 @@ class Hyper implements HyperInterface
         }
     }
 
-	public function setId(?int $httpId)
-	{
+    public function taskId(?int $httpId)
+    {
         $this->httpId = $httpId;
 
         return $this;
-    }
-
-	public function getId()
-	{
-        return $this->httpId;
     }
 
     public function close()
@@ -115,8 +110,8 @@ class Hyper implements HyperInterface
         $this->flush();
     }
 
-	public function flush()
-	{
+    public function flush()
+    {
         $this->request = null;
         $this->stream = null;
         $this->httpId = null;
@@ -130,18 +125,18 @@ class Hyper implements HyperInterface
         self::$waitAbortedCleared = true;
     }
 
-	public function logger(): array
-	{
+    public function logger(): array
+    {
         return [$this->logger, $this->loggerName];
     }
 
-	public function defaultLog(): array
-	{
+    public function defaultLog(): array
+    {
         return (self::$defaultLogger) ? self::$defaultLog : [];
     }
 
-	public function resetLog()
-	{
+    public function resetLog()
+    {
         self::$defaultLog = [];
         self::$defaultLogger = false;
     }
@@ -149,11 +144,11 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-	public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true)
-	{
-		self::$waitCount = $count;
-		self::$waitShouldError = $exception;
-		self::$waitAbortedCleared = $clearAborted;
+    public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true)
+    {
+        self::$waitCount = $count;
+        self::$waitShouldError = $exception;
+        self::$waitAbortedCleared = $clearAborted;
     }
 
     /**
@@ -162,7 +157,7 @@ class Hyper implements HyperInterface
     public static function wait(...$httpId)
     {
         return new Kernel(
-			function(TaskInterface $task, CoroutineInterface $coroutine) use ($httpId) {
+            function (TaskInterface $task, CoroutineInterface $coroutine) use ($httpId) {
                 $waitCount = self::$waitCount;
                 $waitShouldError = self::$waitShouldError;
                 $waitAbortedCleared = self::$waitAbortedCleared;
@@ -171,7 +166,7 @@ class Hyper implements HyperInterface
                 $httpList = [];
                 $responses = [];
                 $httpIdCount = \is_array($httpId[0]) ? $httpId[0] : $httpId;
-				foreach($httpIdCount as $value) {
+                foreach ($httpIdCount as $value) {
                     if (\is_int($value)) {
                         $httpList[$value] = $value;
                     } else {
@@ -195,7 +190,7 @@ class Hyper implements HyperInterface
 
                 // Check and handle request tasks already completed before entering/executing, fetch()/wait().
                 if ($countComplete > 0) {
-                    foreach($completeList as $id => $tasks) {
+                    foreach ($completeList as $id => $tasks) {
                         if (isset($httpList[$id])) {
                             $tasks->customState('ended');
                             $hyper = $tasks->getCustomData();
@@ -207,7 +202,7 @@ class Hyper implements HyperInterface
 
                             // Add task id to stream instance
                             if ($stream instanceof \Async\Request\AsyncStream) {
-                                $stream = $stream->setId($id);
+                                $stream = $stream->taskId($id);
                                 $result = $result->withBody($stream);
                             }
 
@@ -238,7 +233,7 @@ class Hyper implements HyperInterface
 
                 // Run and wait until requested count is reached.
                 while ($count > 0) {
-                    foreach($httpList as $id) {
+                    foreach ($httpList as $id) {
                         if (isset($taskList[$id])) {
                             $tasks = $taskList[$id];
                             // Handle not started tasks, force start.
@@ -246,13 +241,13 @@ class Hyper implements HyperInterface
                                 try {
                                     $tasks->customState('started');
                                     $coroutine->execute(true);
-                                } catch(\Throwable $error) {
+                                } catch (\Throwable $error) {
                                     $tasks->setState('erred');
                                     $tasks->setException($error);
                                     $coroutine->schedule($tasks);
                                     $coroutine->execute();
                                 }
-                            // Handle finished tasks
+                                // Handle finished tasks
                             } elseif ($tasks->completed()) {
                                 $tasks->customState('ended');
                                 $hyper = $tasks->getCustomData();
@@ -281,7 +276,7 @@ class Hyper implements HyperInterface
 
                                     // Add task id to stream instance
                                     if ($stream instanceof \Async\Request\AsyncStream) {
-                                        $stream = $stream->setId($id);
+                                        $stream = $stream->taskId($id);
                                         $result = $result->withBody($stream);
                                     }
 
@@ -299,7 +294,7 @@ class Hyper implements HyperInterface
                                             break;
                                     }
                                 }
-                            // Handle error or cancel tasks
+                                // Handle error or cancel tasks
                             } elseif ($tasks->erred() || $tasks->cancelled()) {
                                 $exception = $tasks->cancelled() ? new CancelledError() : $tasks->exception();
 
@@ -324,7 +319,7 @@ class Hyper implements HyperInterface
                     $abortList = \array_diff($httpIdCount, $resultId);
                     $currentList = $coroutine->taskList();
                     $finishedList = $coroutine->completedList();
-                    foreach($abortList as $requestId) {
+                    foreach ($abortList as $requestId) {
                         if (isset($finishedList[$requestId])) {
                             self::updateList($coroutine, $requestId, $finishedList, true);
                         } elseif (isset($currentList[$requestId])) {
@@ -342,17 +337,17 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper)
-	{
-		return Kernel::await($httpFunction, 'beginning', $hyper);
+    public static function awaitable(\Generator $httpFunction, HyperInterface $hyper)
+    {
+        return Kernel::await($httpFunction, 'beginning', $hyper);
     }
 
     /**
      * @inheritdoc
      */
-	public static function cancel(int $httpId)
-	{
-		return Kernel::cancelTask($httpId, 'aborted', \BAD_ID);
+    public static function cancel(int $httpId)
+    {
+        return Kernel::cancelTask($httpId, 'aborted', \BAD_ID);
     }
 
     /**
@@ -364,8 +359,8 @@ class Hyper implements HyperInterface
         array $taskList = [],
         bool $abort = false,
         bool $cancel = false,
-        bool $forceUpdate = false)
-	{
+        bool $forceUpdate = false
+    ) {
         if ($abort && isset($taskList[$taskId])) {
             $taskList[$taskId]->customState('aborted');
             $hyper = $taskList[$taskId]->getCustomData();
@@ -391,8 +386,7 @@ class Hyper implements HyperInterface
         int $attempts = \RETRY_ATTEMPTS,
         float $timeout = \RETRY_TIMEOUT,
         bool $withTimeout = false
-    )
-    {
+    ) {
         if ($attempts > 0) {
             $this->timeout = ($withTimeout) ? $timeout : \REQUEST_TIMEOUT;
             try {
@@ -403,7 +397,7 @@ class Hyper implements HyperInterface
                     $timeout = $timeout * \RETRY_MULTIPLY;
                     yield \log_debug(
                         'Retry: {attempts} Timeout: {timeout} Exception: {exception}',
-                        [ 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        ['attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
@@ -411,7 +405,7 @@ class Hyper implements HyperInterface
                 } else {
                     yield \log_error(
                         'Timeout: {timeout} Exception: {exception}',
-                        [ 'timeout' =>  $timeout, 'exception' => $requestError],
+                        ['timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
@@ -500,7 +494,9 @@ class Hyper implements HyperInterface
     {
         return yield $this->selectSendRequest(
             $this->request(Request::METHOD_OPTIONS, $url, null, $authorizeHeaderOptions),
-            3, 5, true
+            3,
+            5,
+            true
         );
     }
 
@@ -515,7 +511,7 @@ class Hyper implements HyperInterface
 
         $headers = $options = [];
         $index = 0;
-        \array_map(function($sections) use(&$headers, &$options , &$index) {
+        \array_map(function ($sections) use (&$headers, &$options, &$index) {
             $index++;
             if ($index == 1) {
                 $headers = (isset($sections['headers'][0])) ? [] : $sections;
@@ -531,15 +527,15 @@ class Hyper implements HyperInterface
 
         // Create a new Request
         $request = (new Request)
-			->withMethod($method)
-			->withUri($url);
+            ->withMethod($method)
+            ->withUri($url);
 
         // Set default HTTP version
         $request = $request->withProtocolVersion((string) $defaultOptions['protocol_version']);
 
         // Add in default headers to request.
         if (!empty($defaultHeaders['headers'])) {
-            foreach($defaultHeaders['headers'] as $name => $value) {
+            foreach ($defaultHeaders['headers'] as $name => $value) {
                 $request = $request->withAddedHeader($name, $value);
             }
         }
@@ -558,12 +554,12 @@ class Hyper implements HyperInterface
 
         // Add request specific headers.
         if (!empty($headers['headers'])) {
-            foreach($headers['headers'] as $key => $value) {
+            foreach ($headers['headers'] as $key => $value) {
                 $request = $request->withHeader($key, $value);
             }
         }
 
-		if (\is_array($body)) {
+        if (\is_array($body)) {
             $format = null;
             if (isset($body[0]) && isset($body[1]) && isset($body[2]))
                 [$type, $data, $format] = $body;
@@ -601,15 +597,15 @@ class Hyper implements HyperInterface
         $method = $request->getMethod();
 
         if ($request->getBody()->getSize()) {
-			$request = $request->withHeader('Content-Length', (string) $request->getBody()->getSize());
+            $request = $request->withHeader('Content-Length', (string) $request->getBody()->getSize());
         }
 
         $useOption = $request->getOptions();
         $useOptions = empty($useOptions) ? $option : $useOption;
-		$options = \array_merge($useOptions, [
-			'method' => $method,
-			'protocol_version' => $request->getProtocolVersion(),
-			'header' => $this->buildRequestHeaders($request->getHeaders()),
+        $options = \array_merge($useOptions, [
+            'method' => $method,
+            'protocol_version' => $request->getProtocolVersion(),
+            'header' => $this->buildRequestHeaders($request->getHeaders()),
         ]);
 
         $context = [
@@ -679,7 +675,7 @@ class Hyper implements HyperInterface
             }
 
             $headers = \stream_get_meta_data($resource)['wrapper_data'];
-            $this->stream = $stream->setId($this->httpId);
+            $this->stream = $stream->taskId($this->httpId);
 
             if ($option['follow_location']) {
                 $headers = $this->filterResponseHeaders($headers);
@@ -692,11 +688,11 @@ class Hyper implements HyperInterface
             yield;
             if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
                 $response = Response::create($status)
-                ->withProtocolVersion($version);
+                    ->withProtocolVersion($version);
             else {
                 $response = Response::create($status)
-                ->withProtocolVersion($version)
-                ->withBody($stream);
+                    ->withProtocolVersion($version)
+                    ->withBody($stream);
             }
 
             foreach ($this->buildResponseHeaders($headers) as $key => $value) {
@@ -726,7 +722,7 @@ class Hyper implements HyperInterface
         return $headers;
     }
 
-	/**
+    /**
      * Build the response headers.
      *
      * @param array $lines
@@ -734,33 +730,33 @@ class Hyper implements HyperInterface
      */
     protected function buildResponseHeaders(array $lines): array
     {
-		$headers = [];
-		foreach ($lines as $line) {
-			$parts = \explode(':', $line, 2);
-			$headers[\trim($parts[0])][] = \trim($parts[1] ?? null);
-		}
+        $headers = [];
+        foreach ($lines as $line) {
+            $parts = \explode(':', $line, 2);
+            $headers[\trim($parts[0])][] = \trim($parts[1] ?? null);
+        }
 
-		return $headers;
+        return $headers;
     }
 
-	/**
-	 * @param array $headers
-	 *
-	 * @return array
-	 */
-	protected function filterResponseHeaders(array $headers): array
-	{
-		$filteredHeaders = [];
-		foreach ($headers as $header) {
-			if (strpos($header, 'HTTP/') === 0) {
-				$filteredHeaders = [];
+    /**
+     * @param array $headers
+     *
+     * @return array
+     */
+    protected function filterResponseHeaders(array $headers): array
+    {
+        $filteredHeaders = [];
+        foreach ($headers as $header) {
+            if (strpos($header, 'HTTP/') === 0) {
+                $filteredHeaders = [];
             }
 
-			$filteredHeaders[] = $header;
-		}
+            $filteredHeaders[] = $header;
+        }
 
-		return $filteredHeaders;
-	}
+        return $filteredHeaders;
+    }
 
     protected function authorization(array $authorize = null): string
     {
@@ -793,8 +789,8 @@ class Hyper implements HyperInterface
         return $authorization;
     }
 
-	protected function optionsHeaderSplicer(array ...$headersOptions): array
-	{
+    protected function optionsHeaderSplicer(array ...$headersOptions): array
+    {
         $headersOptions = $headersOptions[0];
         $header['headers'] = $authorizer = $headers = $options = [];
         if (isset($headersOptions[0][0])) {
@@ -805,7 +801,7 @@ class Hyper implements HyperInterface
 
         $index = 0;
         if (\is_array($headersOptions)) {
-            \array_map(function($sections) use(&$authorizer, &$headers, &$options, &$index) {
+            \array_map(function ($sections) use (&$authorizer, &$headers, &$options, &$index) {
                 $index++;
                 if ($index == 1) {
                     if (!empty($sections)) {
@@ -828,6 +824,6 @@ class Hyper implements HyperInterface
         if (!empty($combined))
             $header['headers'] = $combined;
 
-		return !empty($header['headers']) ? [$header, $options] : [[], $options];
+        return !empty($header['headers']) ? [$header, $options] : [[], $options];
     }
 }

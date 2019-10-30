@@ -16,58 +16,58 @@ interface HyperInterface extends RequestMethodInterface
      */
     public function close();
 
-	/**
-	 * Controls how the `wait()` function operates.
-	 *
-	 * @param int $count - If set, initiate a competitive race between multiple HTTP tasks.
-	 * - When amount of tasks as completed, the `wait` will return with HTTP task response.
-	 * - When `0` (default), will wait for all to complete.
-	 * @param bool $exception - If `true` (default), the first raised exception is
-	 * immediately propagated to the task that `yield`ed on wait(). Other awaitables in
-	 * the aws sequence won't be abort/cancelled and will continue to run.
-	 * - If `false`, exceptions are treated the same as successful response results,
+    /**
+     * Controls how the `wait()` function operates.
+     *
+     * @param int $count - If set, initiate a competitive race between multiple HTTP tasks.
+     * - When amount of tasks as completed, the `wait` will return with HTTP task response.
+     * - When `0` (default), will wait for all to complete.
+     * @param bool $exception - If `true` (default), the first raised exception is
+     * immediately propagated to the task that `yield`ed on wait(). Other awaitables in
+     * the aws sequence won't be abort/cancelled and will continue to run.
+     * - If `false`, exceptions are treated the same as successful response results,
      * and aggregated in the response list.
      * @param bool $clearAborted - If `true` (default), close/cancel/abort remaining result/responses
      *
-	 * @throws \LengthException - If the number of tasks less than the desired $count.
-	 */
-	public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true);
+     * @throws \LengthException - If the number of tasks less than the desired $count.
+     */
+    public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true);
 
-	/**
-	 * Run awaitable HTTP tasks in the httpId sequence concurrently.
-	 *
-	 * If all awaitables are completed successfully, the result is an aggregate list of returned values.
-	 * The order of result values corresponds to the order of awaitables in httpId.
-	 *
-	 * The first raised exception is immediately propagated to the task that `yield`ed `wait()`.
-	 * Other awaitables in the sequence won't be aborted/cancelled and will continue to run.
-	 *
-	 * @see https://docs.python.org/3.7/library/asyncio-task.html#asyncio.gather
-	 *
-	 * @param array $httpId
-	 * @return array
+    /**
+     * Run awaitable HTTP tasks in the httpId sequence concurrently.
+     *
+     * If all awaitables are completed successfully, the result is an aggregate list of returned values.
+     * The order of result values corresponds to the order of awaitables in httpId.
+     *
+     * The first raised exception is immediately propagated to the task that `yield`ed `wait()`.
+     * Other awaitables in the sequence won't be aborted/cancelled and will continue to run.
+     *
+     * @see https://docs.python.org/3.7/library/asyncio-task.html#asyncio.gather
+     *
+     * @param array $httpId
+     * @return array
      *
      * @throws \Exception - if not an HTTP task id
-	 */
+     */
     public static function wait(...$httpId);
 
-	/**
-	 * Create an new HTTP request background task
+    /**
+     * Create an new HTTP request background task
      *
      * @param \Generator $httpFunction
      * @param HyperInterface $name
-	 *
-	 * @return int - request HTTP id
-	 */
-	public static function awaitable(\Generator $httpFunction, HyperInterface $hyper);
+     *
+     * @return int - request HTTP id
+     */
+    public static function awaitable(\Generator $httpFunction, HyperInterface $hyper);
 
-	/**
-	 * Abort/kill and remove an open request task using the `awaitable` HTTP id.
-	 *
-	 * @param int $httpId
-	 * @return bool
-	 */
-	public static function cancel(int $httpId);
+    /**
+     * Abort/kill and remove an open request task using the `awaitable` HTTP id.
+     *
+     * @param int $httpId
+     * @return bool
+     */
+    public static function cancel(int $httpId);
 
     /**
      * Make a GET call.

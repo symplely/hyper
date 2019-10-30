@@ -14,10 +14,10 @@ use Async\Request\Exception\ClientException;
  */
 class RequestException extends ClientException implements RequestExceptionInterface
 {
-	/**
-	 * @var RequestInterface
-	 */
-	private $request;
+    /**
+     * @var RequestInterface
+     */
+    private $request;
 
     /**
      * RequestException constructor.
@@ -33,16 +33,15 @@ class RequestException extends ClientException implements RequestExceptionInterf
         $this->request = $request;
     }
 
-	/**
-	 * Returns the request.
-	 *
-	 * The request object MAY be a different object from the one passed to ClientInterface::sendRequest()
-	 *
-	 * @return RequestInterface
-	 */
-	public function getRequest(): RequestInterface
-	{
-		return $this->request;
-	}
-
+    /**
+     * Returns the request.
+     *
+     * The request object MAY be a different object from the one passed to ClientInterface::sendRequest()
+     *
+     * @return RequestInterface
+     */
+    public function getRequest(): RequestInterface
+    {
+        return $this->request;
+    }
 }

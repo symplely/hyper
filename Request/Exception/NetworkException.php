@@ -12,35 +12,35 @@ use Psr\Http\Message\RequestInterface;
 /**
  * @codeCoverageIgnore
  */
-class NetworkException extends ClientException implements NetworkExceptionInterface{
+class NetworkException extends ClientException implements NetworkExceptionInterface
+{
 
-	/**
-	 * @var \Psr\Http\Message\RequestInterface
-	 */
-	private $request;
+    /**
+     * @var \Psr\Http\Message\RequestInterface
+     */
+    private $request;
 
-	/**
-	 * @param string $message
-	 * @param \Psr\Http\Message\RequestInterface $request
-	 * @param \Exception|null $previous
-	 */
+    /**
+     * @param string $message
+     * @param \Psr\Http\Message\RequestInterface $request
+     * @param \Exception|null $previous
+     */
     public function __construct(string $message, RequestInterface $request, Exception $previous = null)
     {
-		$this->request = $request;
+        $this->request = $request;
 
-		parent::__construct($message, 0, $previous);
-	}
+        parent::__construct($message, 0, $previous);
+    }
 
-	/**
-	 * Returns the request.
-	 *
-	 * The request object MAY be a different object from the one passed to ClientInterface::sendRequest()
-	 *
-	 * @return \Psr\Http\Message\RequestInterface
-	 */
-    public function getRequest():RequestInterface
+    /**
+     * Returns the request.
+     *
+     * The request object MAY be a different object from the one passed to ClientInterface::sendRequest()
+     *
+     * @return \Psr\Http\Message\RequestInterface
+     */
+    public function getRequest(): RequestInterface
     {
-		return $this->request;
-	}
-
+        return $this->request;
+    }
 }

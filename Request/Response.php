@@ -12,5 +12,4 @@ use Async\Request\MessageResponse;
  * @package Async\Request\Response
  */
 class Response extends MessageResponse
-{
-}
+{ }

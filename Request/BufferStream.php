@@ -131,7 +131,7 @@ class BufferStream implements StreamInterface
      */
     public function read($length)
     {
-        if( $length >= \strlen($this->buffer) ){
+        if ($length >= \strlen($this->buffer)) {
             return $this->getContents();
         }
 
