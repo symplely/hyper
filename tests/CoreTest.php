@@ -26,7 +26,7 @@ class CoreTest extends TestCase
         'https://nytimes.com/'
     ];
 
-	protected function setUp(): void
+    protected function setUp(): void
     {
         \coroutine_clear();
         \http_nuke();
@@ -35,7 +35,7 @@ class CoreTest extends TestCase
 
     public function task_head($websites)
     {
-        foreach($websites as $website) {
+        foreach ($websites as $website) {
             $tasks[] = yield \request(\http_head($website));
         }
         $this->assertCount(\count($this->websites), $tasks);
@@ -48,7 +48,7 @@ class CoreTest extends TestCase
 
         $this->assertCount(3, $responses);
         $statuses = ['200' => 0, '400' => 0];
-        \array_map(function($instance) use (&$statuses) {
+        \array_map(function ($instance) use (&$statuses) {
             $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $instance);
             $this->assertTrue(\response_ok($instance));
             $this->assertEquals(Response::STATUS_OK, \response_code($instance));
@@ -89,12 +89,12 @@ class CoreTest extends TestCase
     public function taskRequestGet()
     {
         $pipedream = yield \request(new Request(Request::METHOD_GET, self::TARGET_URL));
-        $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS.'get']);
+        $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS . 'get']);
         $times = yield \request(\http_get('https://nytimes.com'));
 
         $responses = yield \fetch($pipedream, $httpBin, $times);
         $this->assertCount(3, $responses);
-        \array_map(function($urlInstance) {
+        \array_map(function ($urlInstance) {
             $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
             $this->assertTrue(\response_ok($urlInstance));
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
@@ -104,8 +104,8 @@ class CoreTest extends TestCase
             \response_clear($urlInstance);
         }, $responses);
 
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage(\BAD_ID);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(\BAD_ID);
         yield \request_abort(999999);
     }
 
@@ -116,13 +116,13 @@ class CoreTest extends TestCase
 
     public function taskRequestPost()
     {
-        $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS.'post', ["foo" => "bar"]]);
+        $httpBin = yield \request([Request::METHOD_POST, self::TARGET_URLS . 'post', ["foo" => "bar"]]);
         $pipedream = yield \request(\http_post(self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
 
         $responses = yield \fetch($pipedream, $httpBin);
         $this->assertCount(2, $responses);
 
-        foreach($responses as $key => $urlInstance) {
+        foreach ($responses as $key => $urlInstance) {
             $this->assertTrue(\is_type($key, 'int'));
             $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
             $this->assertTrue(\response_ok($urlInstance));
@@ -134,8 +134,8 @@ class CoreTest extends TestCase
         };
 
         \response_clear();
-		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage(\BAD_CALL);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage(\BAD_CALL);
         $this->assertNull(yield \response_xml());
     }
 
@@ -146,8 +146,8 @@ class CoreTest extends TestCase
 
     public function taskFetch()
     {
-		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage(\BAD_ACCESS);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage(\BAD_ACCESS);
         $responses = yield \fetch(
             \http_options(self::TARGET_URL)
         );
@@ -161,7 +161,7 @@ class CoreTest extends TestCase
     public function taskFetchFailSkip()
     {
         $pipedream = yield \request('pine', \http_post('pine', self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
-        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
+        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS . 'put', ["foo" => "bar"]));
         $bad = yield \request(
             (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
         );
@@ -187,12 +187,12 @@ class CoreTest extends TestCase
     public function taskFetchFail()
     {
         $pipedream = yield \request('pine', \http_post('pine', self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
-        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
+        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS . 'put', ["foo" => "bar"]));
         $bad = yield \request(
             (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
         );
 
-		$this->expectException(RequestException::class);
+        $this->expectException(RequestException::class);
         $responses = yield \fetch($pipedream, $httpBin, $bad);
     }
 
@@ -204,10 +204,10 @@ class CoreTest extends TestCase
     public function taskFetchFailInt()
     {
         $pipedream = yield \request('pine', \http_post('pine', self::TARGET_URL, [Body::JSON, "foo" => "bar"]));
-        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS.'put', ["foo" => "bar"]));
+        $httpBin = yield \request('bin', \http_put('bin', self::TARGET_URLS . 'put', ["foo" => "bar"]));
         $bad = 'yield \request((new Request(Request::METHOD_OPTIONS, self::TARGET_URL)));';
 
-		$this->expectException(Panicking::class);
+        $this->expectException(Panicking::class);
         $responses = yield \fetch($pipedream, $httpBin, $bad);
     }
 
@@ -220,7 +220,7 @@ class CoreTest extends TestCase
     {
         $data['name'] = 'github';
         $data['key'] = 'XT3837';
-        yield \request('bin', [Request::METHOD_PUT, self::TARGET_URLS.'put', $data]);
+        yield \request('bin', [Request::METHOD_PUT, self::TARGET_URLS . 'put', $data]);
         yield \request('pipe', \http_put('pipe', self::TARGET_URL, $data));
 
         while (true) {
@@ -238,8 +238,8 @@ class CoreTest extends TestCase
         \response_clear('pipe');
 
         \http_clear('bin');
-		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage(\BAD_CALL);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage(\BAD_CALL);
         $this->assertEquals('{"success":true}', yield \response_body('bin'));
     }
 
@@ -252,7 +252,7 @@ class CoreTest extends TestCase
     {
         $data['name'] = 'github';
         $data['key'] = 'XT3837';
-        yield \request('bin', [Request::METHOD_PATCH, self::TARGET_URLS.'patch', $data]);
+        yield \request('bin', [Request::METHOD_PATCH, self::TARGET_URLS . 'patch', $data]);
         yield \request('pipe', \http_patch('pipe', self::TARGET_URL, $data));
 
         while (true) {
@@ -270,8 +270,8 @@ class CoreTest extends TestCase
         \response_clear('pipe');
 
         \http_clear('bin');
-		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage(\BAD_CALL);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage(\BAD_CALL);
         $this->assertEquals('{"success":true}', yield \response_json('bin'));
     }
 
@@ -285,7 +285,7 @@ class CoreTest extends TestCase
         $data['name'] = 'github';
         $data['key'] = 'XT3837';
 
-        yield \request([Request::METHOD_DELETE, self::TARGET_URLS.'delete', $data]);
+        yield \request([Request::METHOD_DELETE, self::TARGET_URLS . 'delete', $data]);
         yield \request('pipe', \http_delete('pipe', self::TARGET_URL, Body::create(Body::JSON, $data)));
 
         while (true) {
@@ -297,8 +297,8 @@ class CoreTest extends TestCase
         }
 
         \response_clear('pipe');
-		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage(\BAD_CALL);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage(\BAD_CALL);
         $this->assertSame(true, (yield \response_json('pipe'))->success);
         \http_clear();
     }
@@ -311,7 +311,7 @@ class CoreTest extends TestCase
     public function taskRequestOptions()
     {
         yield \request('pipe', \http_options('pipe', self::TARGET_URL));
-        yield \request([Request::METHOD_OPTIONS, self::TARGET_URLS.'options']);
+        yield \request([Request::METHOD_OPTIONS, self::TARGET_URLS . 'options']);
 
         while (true) {
             if (\response_header('pipe', "Access-Control-Allow-Methods") === null) {
@@ -374,7 +374,7 @@ class CoreTest extends TestCase
         $response = yield \http_delete();
         $this->assertFalse($response);
 
-		$this->expectException(\LengthException::class);
+        $this->expectException(\LengthException::class);
         \fetchOptions(3);
         $responses = yield \fetch([1]);
     }

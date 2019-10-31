@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 class BodyTest extends TestCase
 {
-	protected function setUp(): void
+    protected function setUp(): void
     {
         \coroutine_clear();
     }
@@ -41,10 +41,11 @@ class BodyTest extends TestCase
 
     public function task_create_instance_from_file_on_disk()
     {
-        $fileBody = new Body(Body::FILE, __DIR__ .\DS.'files'.\DS.'plainText.txt');
+        $fileBody = new Body(Body::FILE, __DIR__ . \DS . 'files' . \DS . 'plainText.txt');
 
         $this->assertEquals(
-            "\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"plainText.txt\"\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nSymplely!", yield $fileBody->getMultiPart("BOUNDARY", "file")
+            "\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"plainText.txt\"\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nSymplely!",
+            yield $fileBody->getMultiPart("BOUNDARY", "file")
         );
     }
 
@@ -55,11 +56,13 @@ class BodyTest extends TestCase
 
     public function task_create_instance_from_file_on_disk_with_filename_override()
     {
-        $fileBody = new Body(Body::FILE, __DIR__ .\DS.'files'.\DS.'plainText.txt', "plain.txt");
+        $fileBody = new Body(Body::FILE, __DIR__ . \DS . 'files' . \DS . 'plainText.txt', "plain.txt");
 
         $result = yield $fileBody->getMultiPart("BOUNDARY", "file");
         $this->assertEquals(
-            "\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"plain.txt\"\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nSymplely!", $result);
+            "\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"plain.txt\"\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nSymplely!",
+            $result
+        );
     }
 
     public function test_create_instance_from_file_on_disk_with_filename_override()
@@ -69,7 +72,7 @@ class BodyTest extends TestCase
 
     public function task_create_instance_from_file_on_disk_with_content_type_override()
     {
-        $fileBody = new Body(BodyInterface::FILE, __DIR__ .\DS.'files'.\DS.'plainText.txt', null, "text/html");
+        $fileBody = new Body(BodyInterface::FILE, __DIR__ . \DS . 'files' . \DS . 'plainText.txt', null, "text/html");
 
         $this->assertEquals(
             "\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"plainText.txt\"\r\nContent-Type: text/html\r\nContent-Length: 9\r\n\r\nSymplely!",
@@ -138,7 +141,8 @@ class BodyTest extends TestCase
 
     public function test_form_body_transformation()
     {
-        $formBody = Body::create(Body::FORM,
+        $formBody = Body::create(
+            Body::FORM,
             [
                 "name" => "John Doe",
                 "email" => "jdoe@example.com",
@@ -164,7 +168,8 @@ class BodyTest extends TestCase
 
     public function test_json_encoding()
     {
-        $jsonBody = Body::create(Body::JSON,
+        $jsonBody = Body::create(
+            Body::JSON,
             [
                 "name" => "John Doe",
                 "email" => "jdoe@example.com",
@@ -181,7 +186,11 @@ class BodyTest extends TestCase
                 'email' => 'user@example.com',
                 'name' => 'Example User',
             ]),
-            'file' => new Body(Body::FILE, new BufferStream("Symplely!"), 'plain.txt', 'text/plain'
+            'file' => new Body(
+                Body::FILE,
+                new BufferStream("Symplely!"),
+                'plain.txt',
+                'text/plain'
             )
         ]);
 
@@ -208,7 +217,8 @@ class BodyTest extends TestCase
                 'name' => 'Example User',
             ]),
 
-            new Body(Body::FILE,
+            new Body(
+                Body::FILE,
                 new BufferStream("Symplely!"),
                 'plain.txt',
                 'text/plain'

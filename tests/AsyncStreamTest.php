@@ -10,16 +10,16 @@ use PHPUnit\Framework\TestCase;
 
 class AsyncStreamTest extends TestCase
 {
-	protected function setUp(): void
+    protected function setUp(): void
     {
         \coroutine_clear();
     }
 
     public function testConstructorThrowsExceptionOnInvalidArgument()
     {
-		$this->expectException(\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
 
-		new AsyncStream(true);
+        new AsyncStream(true);
     }
 
     public function taskConstructorInitializesProperties()
@@ -167,13 +167,27 @@ class AsyncStreamTest extends TestCase
             }
         };
 
-        $throws(function (StreamInterface $stream) { yield $stream->read(10); });
-        $throws(function (StreamInterface $stream) { yield $stream->write('bar'); });
-        $throws(function (StreamInterface $stream) { $stream->seek(10); });
-        $throws(function (StreamInterface $stream) { $stream->tell(); });
-        $throws(function (StreamInterface $stream) { $stream->eof(); });
-        $throws(function (StreamInterface $stream) { $stream->getSize(); });
-        $throws(function (StreamInterface $stream) { yield $stream->getContents(); });
+        $throws(function (StreamInterface $stream) {
+            yield $stream->read(10);
+        });
+        $throws(function (StreamInterface $stream) {
+            yield $stream->write('bar');
+        });
+        $throws(function (StreamInterface $stream) {
+            $stream->seek(10);
+        });
+        $throws(function (StreamInterface $stream) {
+            $stream->tell();
+        });
+        $throws(function (StreamInterface $stream) {
+            $stream->eof();
+        });
+        $throws(function (StreamInterface $stream) {
+            $stream->getSize();
+        });
+        $throws(function (StreamInterface $stream) {
+            yield $stream->getContents();
+        });
 
         $this->assertSame('', (string) $stream);
         $stream->close();
@@ -184,14 +198,15 @@ class AsyncStreamTest extends TestCase
         \coroutine_run($this->taskCanDetachStream());
     }
 
-	public function taskStreamReadingWithZeroLength(){
-		$r      = fopen('php://temp', 'r');
-		$stream = new AsyncStream($r);
+    public function taskStreamReadingWithZeroLength()
+    {
+        $r      = fopen('php://temp', 'r');
+        $stream = new AsyncStream($r);
 
-		$this->assertSame('', yield $stream->read(0));
+        $this->assertSame('', yield $stream->read(0));
 
-		$stream->close();
-	}
+        $stream->close();
+    }
 
     public function testStreamReadingWithZeroLength()
     {
@@ -200,21 +215,21 @@ class AsyncStreamTest extends TestCase
 
     public function taskStreamReadingWithNegativeLength()
     {
-		$this->expectException(\RuntimeException::class);
-		$this->expectExceptionMessage('Length parameter cannot be negative');
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Length parameter cannot be negative');
 
-		$r = fopen('php://temp', 'r');
-		$stream = new AsyncStream($r);
+        $r = fopen('php://temp', 'r');
+        $stream = new AsyncStream($r);
 
-		try {
-			yield $stream->read(-1);
-		} catch(\Exception $e) {
-			$stream->close();
-			/** @noinspection PhpUnhandledExceptionInspection */
-			throw $e;
-		}
+        try {
+            yield $stream->read(-1);
+        } catch (\Exception $e) {
+            $stream->close();
+            /** @noinspection PhpUnhandledExceptionInspection */
+            throw $e;
+        }
 
-		$stream->close();
+        $stream->close();
     }
 
     public function testStreamReadingWithNegativeLength()

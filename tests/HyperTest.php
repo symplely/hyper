@@ -19,7 +19,7 @@ class HyperTest extends TestCase
     const TARGET_URLS = "https://httpbin.org/";
     protected $http;
 
-	protected function setUp(): void
+    protected function setUp(): void
     {
         \coroutine_clear();
         $this->http = new Hyper;
@@ -125,7 +125,8 @@ class HyperTest extends TestCase
 
     public function task_send_request_with_added_headers()
     {
-        $response = yield $this->http->get(self::TARGET_URLS.'get',
+        $response = yield $this->http->get(
+            self::TARGET_URLS . 'get',
             [],
             ['X-Added-Header' => 'Symplely!', 'X-Http-Client' => 'Hyper'],
             ['timeout' => 10]
@@ -143,9 +144,9 @@ class HyperTest extends TestCase
         \coroutine_run($this->task_send_request_with_added_headers());
     }
 
-	public function taskSendRequest()
-	{
-        $url = self::TARGET_URLS.'get';
+    public function taskSendRequest()
+    {
+        $url = self::TARGET_URLS . 'get';
         $response = yield $this->http->sendRequest(
             (new Request(Request::METHOD_GET, $url))
         );
@@ -155,7 +156,7 @@ class HyperTest extends TestCase
         $this->assertSame(\SYMPLELY_USER_AGENT, $json->headers->{'User-Agent'});
         $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
         $this->assertInstanceOf(StreamInterface::class, $response->getBody());
-	}
+    }
 
     public function testSendRequest()
     {
@@ -165,10 +166,12 @@ class HyperTest extends TestCase
     public function taskRequestBearer()
     {
         $response = yield $this->http->sendRequest(
-            $this->http->request(Request::METHOD_GET,
-            self::TARGET_URLS.'bearer',
-            null,
-            ['auth_bearer' => '2323@#$@'])
+            $this->http->request(
+                Request::METHOD_GET,
+                self::TARGET_URLS . 'bearer',
+                null,
+                ['auth_bearer' => '2323@#$@']
+            )
         );
 
         $json = yield \response_json($response);
@@ -176,7 +179,7 @@ class HyperTest extends TestCase
         $this->assertSame(Response::STATUS_OK, $response->getStatusCode());
         $this->assertSame(true, $json->authenticated);
         $this->assertSame('2323@#$@', $json->token);
-	}
+    }
 
     public function testRequestBearer()
     {
@@ -185,9 +188,9 @@ class HyperTest extends TestCase
 
     public function taskNetworkError()
     {
-		$this->expectException(ClientExceptionInterface::class);
+        $this->expectException(ClientExceptionInterface::class);
 
-		yield $this->http->sendRequest(
+        yield $this->http->sendRequest(
             (new Request(Request::METHOD_GET, 'http://foo'))->debugOff()
         );
     }
@@ -199,9 +202,9 @@ class HyperTest extends TestCase
 
     public function taskRequestError()
     {
-		$this->expectException(RequestExceptionInterface::class);
+        $this->expectException(RequestExceptionInterface::class);
 
-		yield $this->http->sendRequest(
+        yield $this->http->sendRequest(
             (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
         );
     }
@@ -213,10 +216,10 @@ class HyperTest extends TestCase
 
     public function taskRequestNotification()
     {
-		$this->expectOutputRegex('/{"notification_code":2,"severity":0,"message":null,"message_code":0,"bytes_transferred":0,"bytes_max":0}\nConnected/');
+        $this->expectOutputRegex('/{"notification_code":2,"severity":0,"message":null,"message_code":0,"bytes_transferred":0,"bytes_max":0}\nConnected/');
 
-		yield $this->http->sendRequest(
-            (new Request(Request::METHOD_PATCH, self::TARGET_URLS.'patch'))->debugOn()
+        yield $this->http->sendRequest(
+            (new Request(Request::METHOD_PATCH, self::TARGET_URLS . 'patch'))->debugOn()
         );
     }
 
