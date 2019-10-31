@@ -81,10 +81,6 @@ class Hyper implements HyperInterface
     protected static $defaultLog = [];
     protected static $defaultLogger = false;
 
-    protected static $waitCount = 0;
-    protected static $waitShouldError = true;
-    protected static $waitAbortedCleared = true;
-
     public function __construct(?string $loggerName = null)
     {
         $this->loggerName = empty($loggerName) ? 'HyperLink' : $loggerName;
@@ -119,10 +115,6 @@ class Hyper implements HyperInterface
 
         $this->logger = null;
         $this->loggerName = '';
-
-        self::$waitCount = 0;
-        self::$waitShouldError = true;
-        self::$waitAbortedCleared = true;
     }
 
     public function logger(): array
@@ -144,11 +136,105 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true)
+    public static function waitOptions(int $count = 0, bool $exception = true): void
     {
-        self::$waitCount = $count;
-        self::$waitShouldError = $exception;
-        self::$waitAbortedCleared = $clearAborted;
+        Kernel::gatherOptions($count, $exception);
+    }
+
+    /**
+     * Setup wait/gather to run and wait until requested count is reached.
+     *
+     * @return void
+     */
+    protected static function waitController()
+    {
+        /**
+         * Check and handle request tasks already completed before entering/executing, fetch()/wait().
+         */
+        $onAlreadyCompleted = function (TaskInterface $tasks) {
+            $tasks->customState('ended');
+            $hyper = $tasks->getCustomData();
+            if ($hyper instanceof HyperInterface)
+                $hyper->flush();
+
+            return $tasks->result();
+        };
+
+        /**
+         * Handle not started tasks, force start.
+         */
+        $onRequestNotStarted = function (TaskInterface $tasks, CoroutineInterface $coroutine) {
+            try {
+                $tasks->customState('started');
+                $coroutine->execute(true);
+            } catch (\Throwable $error) {
+                $tasks->setState('erred');
+                $tasks->setException($error);
+               // $coroutine->schedule($tasks);
+               // $tasks->run();
+                $coroutine->execute();
+            }
+        };
+
+        /**
+         * Handle finished tasks
+         */
+        $onCompletedRequests = function (TaskInterface $tasks) {
+            $tasks->customState('ended');
+            $hyper = $tasks->getCustomData();
+            if ($hyper instanceof HyperInterface)
+                $hyper->flush();
+
+            return $tasks->result();
+        };
+
+        /**
+         * When updating current/running task list, abort/close responses/requests that will not be used.
+         */
+        $onRequestListUpdate = function (TaskInterface $tasks) {
+            $tasks->customState('aborted');
+            $hyper = $tasks->getCustomData();
+            if ($hyper instanceof HyperInterface)
+                $hyper->close();
+        };
+
+        /**
+         * Update and abort/close any responses not part of request count.
+         */
+        $onRequestAborted = function (CoroutineInterface $coroutine, array &$responses, array &$httpIdCount, ?callable $onUpdate = null) {
+            $resultId = \array_keys($responses);
+            $abortList = \array_diff($httpIdCount, $resultId);
+            $currentList = $coroutine->taskList();
+            $finishedList = $coroutine->completedList();
+            foreach ($abortList as $requestId) {
+                if (isset($finishedList[$requestId])) {
+                    Kernel::updateList($coroutine, $requestId, $finishedList, $onUpdate);
+                } elseif (isset($currentList[$requestId])) {
+                    Kernel::updateList($coroutine, $requestId, $currentList, $onUpdate, true);
+                }
+            }
+        };
+
+        /**
+         * Handle error tasks.
+         */
+        $onError = null;
+
+        /**
+         * Handle cancel tasks.
+         */
+        $onCancel = null;
+
+        Kernel::gatherController(
+            'beginning',
+            $onAlreadyCompleted,
+            $onRequestNotStarted,
+            $onCompletedRequests,
+            $onError,
+            $onCancel,
+            $onRequestListUpdate,
+            $onRequestAborted
+        );
     }
 
     /**
@@ -156,166 +242,8 @@ class Hyper implements HyperInterface
      */
     public static function wait(...$httpId)
     {
-        return new Kernel(
-            function (TaskInterface $task, CoroutineInterface $coroutine) use ($httpId) {
-                $waitCount = self::$waitCount;
-                $waitShouldError = self::$waitShouldError;
-                $waitAbortedCleared = self::$waitAbortedCleared;
-                self::waitOptions();
-
-                $httpList = [];
-                $responses = [];
-                $httpIdCount = \is_array($httpId[0]) ? $httpId[0] : $httpId;
-                foreach ($httpIdCount as $value) {
-                    if (\is_int($value)) {
-                        $httpList[$value] = $value;
-                    } else {
-                        \panic(\BAD_ACCESS);
-                    }
-                }
-
-                $httpIdCount = $httpList;
-                $count = \count($httpList);
-                $waitSet = ($waitCount > 0);
-                if ($waitSet) {
-                    if ($count < $waitCount) {
-                        throw new \LengthException(\sprintf('The (%d) HTTP tasks, not enough to fulfill the `waitOptions(%d)` request count!', $count, $waitCount));
-                    }
-                }
-
-                $taskList = $coroutine->taskList();
-                $completeList = $coroutine->completedList();
-                $countComplete = \count($completeList);
-                $waitCompleteCount = 0;
-
-                // Check and handle request tasks already completed before entering/executing, fetch()/wait().
-                if ($countComplete > 0) {
-                    foreach ($completeList as $id => $tasks) {
-                        if (isset($httpList[$id])) {
-                            $tasks->customState('ended');
-                            $hyper = $tasks->getCustomData();
-                            if ($hyper instanceof HyperInterface)
-                                $hyper->flush();
-
-                            $result = $tasks->result();
-                            $responses[$id] = $result;
-                            $count--;
-                            $waitCompleteCount++;
-                            unset($httpList[$id]);
-
-                            // Update running task list.
-                            self::updateList($coroutine, $id, $completeList);
-
-                            // end loop, if requested count reached
-                            if ($waitCompleteCount == $waitCount)
-                                break;
-                        }
-                    }
-                }
-
-                // Check and update request count base off completed, only if needed.
-                if ($waitSet) {
-                    $subCount = ($waitCount - $waitCompleteCount);
-                    if ($waitCompleteCount != $waitCount) {
-                        $count = $subCount;
-                    } elseif ($waitCompleteCount == $waitCount) {
-                        $count = 0;
-                    }
-                }
-
-                // Run and wait until requested count is reached.
-                while ($count > 0) {
-                    foreach ($httpList as $id) {
-                        if (isset($taskList[$id])) {
-                            $tasks = $taskList[$id];
-                            // Handle not started tasks, force start.
-                            if ($tasks->isCustomState('beginning') || $tasks->pending() || $tasks->rescheduled()) {
-                                try {
-                                    $tasks->customState('started');
-                                    $coroutine->execute(true);
-                                } catch (\Throwable $error) {
-                                    $tasks->setState('erred');
-                                    $tasks->setException($error);
-                                    $coroutine->schedule($tasks);
-                                    $coroutine->execute();
-                                }
-                                // Handle finished tasks
-                            } elseif ($tasks->completed()) {
-                                $tasks->customState('ended');
-                                $hyper = $tasks->getCustomData();
-                                if ($hyper instanceof HyperInterface)
-                                    $hyper->flush();
-
-                                $result = $tasks->result();
-                                // Check handle a result that contains an exception
-                                if (\is_array($result) && (isset($result[0]) && $result[0] instanceof \Throwable)) {
-                                    $exception = $result[0];
-                                    $httpId = $result[1];
-                                    $tasks->setState('erred');
-
-                                    // Update running task list.
-                                    self::updateList($coroutine, $httpId, $taskList, true, false, true);
-                                    $count--;
-                                    unset($taskList[$httpId]);
-
-                                    // Check and propagate/schedule the exception.
-                                    if ($waitShouldError) {
-                                        $task->setException($exception);
-                                        $coroutine->schedule($task);
-                                    }
-                                } else {
-                                    $responses[$id] = $result;
-                                    $count--;
-                                    unset($taskList[$id]);
-
-                                    // Update running task list.
-                                    self::updateList($coroutine, $id);
-
-                                    // end loop, if set and requested count reached
-                                    if ($waitSet) {
-                                        $subCount--;
-                                        if ($subCount == 0)
-                                            break;
-                                    }
-                                }
-                                // Handle error or cancel tasks
-                            } elseif ($tasks->erred() || $tasks->cancelled()) {
-                                $exception = $tasks->cancelled() ? new CancelledError() : $tasks->exception();
-
-                                // Update running task list.
-                                self::updateList($coroutine, $id, $taskList, true, false, true);
-                                $count--;
-                                unset($taskList[$id]);
-
-                                // Check and propagate/schedule the exception.
-                                if ($waitShouldError) {
-                                    $task->setException($exception);
-                                    $coroutine->schedule($task);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Check for, update and abort/close any responses not part of request count.
-                if ($waitSet && $waitAbortedCleared) {
-                    $resultId = \array_keys($responses);
-                    $abortList = \array_diff($httpIdCount, $resultId);
-                    $currentList = $coroutine->taskList();
-                    $finishedList = $coroutine->completedList();
-                    foreach ($abortList as $requestId) {
-                        if (isset($finishedList[$requestId])) {
-                            self::updateList($coroutine, $requestId, $finishedList, true);
-                        } elseif (isset($currentList[$requestId])) {
-                            self::updateList($coroutine, $requestId, $currentList, true, true);
-                        }
-                    }
-                }
-
-                $task->sendValue($responses);
-                $coroutine->schedule($task);
-            }
-        );
+        self::waitController();
+        return Kernel::gather(...$httpId);
     }
 
     /**
@@ -334,37 +262,6 @@ class Hyper implements HyperInterface
         return Kernel::cancelTask($httpId, 'aborted', \BAD_ID);
     }
 
-    /**
-     * Update current/running task list, optional abort/close responses/requests.
-     */
-    protected static function updateList(
-        CoroutineInterface $coroutine,
-        int $taskId,
-        array $taskList = [],
-        bool $abort = false,
-        bool $cancel = false,
-        bool $forceUpdate = false
-    ) {
-        if ($abort && isset($taskList[$taskId])) {
-            $taskList[$taskId]->customState('aborted');
-            $hyper = $taskList[$taskId]->getCustomData();
-            if ($hyper instanceof HyperInterface)
-                $hyper->close();
-        }
-
-        if ($cancel) {
-            $coroutine->cancelTask($taskId);
-        } else {
-            if (empty($taskList) || $forceUpdate)
-                $taskList = $coroutine->completedList();
-
-            if (isset($taskList[$taskId]))
-                unset($taskList[$taskId]);
-
-            $coroutine->updateCompleted($taskList);
-        }
-    }
-
     public function selectSendRequest(
         RequestInterface $request,
         int $attempts = \RETRY_ATTEMPTS,
@@ -380,16 +277,16 @@ class Hyper implements HyperInterface
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
                     yield \log_debug(
-                        'Task: {taskid} Retry: {attempts} Timeout: {timeout} Exception: {exception}',
-                        ['taskid' => $this->httpId, 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        'On task: {taskId} Hyper::selectSendRequest, Retry: {attempts} Timeout: {timeout} Exception: {exception}',
+                        ['taskId' => $this->httpId, 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
                     yield \log_error(
-                        'Task: {taskid} Timeout: {timeout} Exception: {exception}',
-                        ['taskid' => $this->httpId, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        'On task: {taskId} Hyper::selectSendRequest, Timeout: {timeout} Exception: {exception}',
+                        ['taskId' => $this->httpId, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
@@ -611,12 +508,11 @@ class Hyper implements HyperInterface
             \stream_context_set_params($ctx, array('notification' => [$request, 'debug']));
         }
 
+        $this->httpId = yield Kernel::taskId();
         $url = $request->getUri()->__toString();
         $start = \microtime(true);
         $resource = @\fopen($url, 'rb', false, $ctx);
         $timer = \microtime(true) - $start;
-
-        $this->httpId = yield \task_id();
 
         if (!\is_resource($resource)) {
             $error = \error_get_last()['message'];
@@ -627,68 +523,61 @@ class Hyper implements HyperInterface
             }
 
             yield \log_error(
-                'Task: {taskid} failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
-                ['taskid' => $this->httpId, 'timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
+                'On task: {taskId} Hyper::sendRequest, failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
+                ['taskId' => $this->httpId, 'timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
                 $this->loggerName
             );
 
-            if ($this->httpId === null) {
-                throw $e;
-            } else {
-                return [$e, $this->httpId];
-            }
-        } else {
-            yield \log_info(
-                'Task: {taskid} Request: {method} {url} Timeout: {timeout} Took: {timer}ms',
-                ['taskid' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
-                $this->loggerName
-            );
-
-            $stream = AsyncStream::createFromResource($resource);
-
-            if ($this->httpId) {
-                if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
-                    $stream->close();
-                    $e = new RequestException($request, \error_get_last()['message'], 0);
-                    yield \log_warning(
-                        'Task: {taskid} Request: {method} {url} Unset: {timeout} Exception: {exception}',
-                        ['taskid' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
-                        $this->loggerName
-                    );
-
-                    throw $e;
-                }
-            }
-
-            $headers = \stream_get_meta_data($resource)['wrapper_data'];
-
-            // Add task id to stream instance
-            $this->stream = $stream->taskPid($this->httpId);
-
-            if ($option['follow_location']) {
-                $headers = $this->filterResponseHeaders($headers);
-            }
-
-            $parts = \explode(' ', \array_shift($headers), 3);
-            $version = \explode('/', $parts[0])[1];
-            $status = (int) $parts[1];
-
-            yield;
-            if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
-                $response = Response::create($status)
-                    ->withProtocolVersion($version);
-            else {
-                $response = Response::create($status)
-                    ->withProtocolVersion($version)
-                    ->withBody($stream);
-            }
-
-            foreach ($this->buildResponseHeaders($headers) as $key => $value) {
-                $response = $response->withHeader($key, $value);
-            }
-
-            return $response;
+            throw $e;
         }
+
+        yield \log_info(
+            'On task: {taskId} Hyper::sendRequest, {method} {url} Timeout: {timeout} Took: {timer}ms',
+            ['taskId' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
+            $this->loggerName
+        );
+
+        $stream = AsyncStream::createFromResource($resource);
+        if (!\stream_set_timeout($resource, (int) ($this->timeout * \RETRY_MULTIPLY))) {
+            $stream->close();
+            $e = new RequestException($request, \error_get_last()['message'], 0);
+            yield \log_warning(
+                'On task: {taskId} Hyper::sendRequest, {method} {url} failed to Set: {timeout} Exception: {exception}',
+                ['taskId' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
+                $this->loggerName
+            );
+
+            throw $e;
+        }
+
+        $headers = \stream_get_meta_data($resource)['wrapper_data'];
+
+        // Add task id to stream instance
+        $this->stream = $stream->taskPid($this->httpId);
+
+        if ($option['follow_location']) {
+            $headers = $this->filterResponseHeaders($headers);
+        }
+
+        $parts = \explode(' ', \array_shift($headers), 3);
+        $version = \explode('/', $parts[0])[1];
+        $status = (int) $parts[1];
+
+        if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
+            $response = Response::create($status)
+                ->withProtocolVersion($version);
+        else {
+            yield;
+            $response = Response::create($status)
+                ->withProtocolVersion($version)
+                ->withBody($stream);
+        }
+
+        foreach ($this->buildResponseHeaders($headers) as $key => $value) {
+            $response = $response->withHeader($key, $value);
+        }
+
+        return $response;
     }
 
     /**

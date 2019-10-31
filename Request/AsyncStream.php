@@ -287,6 +287,7 @@ class AsyncStream implements StreamInterface
      */
     public function getContents()
     {
+        yield;
         $handle =  $this->getResource();
         if ($this->isReadable() && ($handle !== null)) {
             $buffer = "";
@@ -299,7 +300,7 @@ class AsyncStream implements StreamInterface
             $timer = \microtime(true) - $start;
             if (false !== $buffer) {
                 yield \log_notice(
-                    'Task: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
+                    'On task: {httpId} AsyncStream::getContents, Response: {url} Chunks: {chunk} Took: {timer}ms',
                     ['httpId' => $this->hyperId, 'url' => $this->uri, 'chunk' => \FETCH_CHUNK, 'timer' => $timer],
                     \hyper_loggerName()
                 );
@@ -341,7 +342,7 @@ class AsyncStream implements StreamInterface
             $timer = \microtime(true) - $start;
             if (false !== $contents) {
                 yield \log_notice(
-                    'Task: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
+                    'On task: {httpId} AsyncStream::read, Response: {url} Chunks: {chunk} Took: {timer}ms',
                     ['httpId' => $this->hyperId, 'url' => $this->uri, 'chunk' => $length, 'timer' => $timer],
                     \hyper_loggerName()
                 );
@@ -375,7 +376,7 @@ class AsyncStream implements StreamInterface
         $timer = \microtime(true) - $start;
         if (false !== $written) {
             yield \log_notice(
-                'Task: {httpId} Response: {url} Written: {written} Took: {timer}ms',
+                'On task: {httpId} AsyncStream::write, Response: {url} Written: {written} Took: {timer}ms',
                 ['httpId' => $this->hyperId, 'url' => $this->uri, 'written' => $written, 'timer' => $timer],
                 \hyper_loggerName()
             );

@@ -147,9 +147,9 @@ class CoreTest extends TestCase
     public function taskFetch()
     {
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage(\BAD_ACCESS);
+        $this->expectExceptionMessage('Invalid access, only array of integers, or generator objects allowed!');
         $responses = yield \fetch(
-            \http_options(self::TARGET_URL)
+           '\http_options(self::TARGET_URL)'
         );
     }
 
