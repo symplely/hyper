@@ -95,7 +95,7 @@ class Hyper implements HyperInterface
         }
     }
 
-    public function taskId(?int $httpId)
+    public function taskPid(?int $httpId)
     {
         $this->httpId = $httpId;
 
@@ -198,14 +198,6 @@ class Hyper implements HyperInterface
                                 $hyper->flush();
 
                             $result = $tasks->result();
-                            $stream = $result->getBody();
-
-                            // Add task id to stream instance
-                            if ($stream instanceof \Async\Request\AsyncStream) {
-                                $stream = $stream->taskId($id);
-                                $result = $result->withBody($stream);
-                            }
-
                             $responses[$id] = $result;
                             $count--;
                             $waitCompleteCount++;
@@ -272,14 +264,6 @@ class Hyper implements HyperInterface
                                         $coroutine->schedule($task);
                                     }
                                 } else {
-                                    $stream = $result->getBody();
-
-                                    // Add task id to stream instance
-                                    if ($stream instanceof \Async\Request\AsyncStream) {
-                                        $stream = $stream->taskId($id);
-                                        $result = $result->withBody($stream);
-                                    }
-
                                     $responses[$id] = $result;
                                     $count--;
                                     unset($taskList[$id]);
@@ -396,16 +380,16 @@ class Hyper implements HyperInterface
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
                     yield \log_debug(
-                        'Retry: {attempts} Timeout: {timeout} Exception: {exception}',
-                        ['attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        'Task: {taskid} Retry: {attempts} Timeout: {timeout} Exception: {exception}',
+                        ['taskid' => $this->httpId, 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
                     yield \log_error(
-                        'Timeout: {timeout} Exception: {exception}',
-                        ['timeout' =>  $timeout, 'exception' => $requestError],
+                        'Task: {taskid} Timeout: {timeout} Exception: {exception}',
+                        ['taskid' => $this->httpId, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
@@ -632,6 +616,8 @@ class Hyper implements HyperInterface
         $resource = @\fopen($url, 'rb', false, $ctx);
         $timer = \microtime(true) - $start;
 
+        $this->httpId = yield \task_id();
+
         if (!\is_resource($resource)) {
             $error = \error_get_last()['message'];
             if (\strpos($error, 'getaddrinfo') || \strpos($error, 'Connection refused')) {
@@ -641,8 +627,8 @@ class Hyper implements HyperInterface
             }
 
             yield \log_error(
-                'failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
-                ['timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
+                'Task: {taskid} failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
+                ['taskid' => $this->httpId, 'timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
                 $this->loggerName
             );
 
@@ -653,8 +639,8 @@ class Hyper implements HyperInterface
             }
         } else {
             yield \log_info(
-                'Request: {method} {url} Timeout: {timeout} Took: {timer}ms',
-                ['method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
+                'Task: {taskid} Request: {method} {url} Timeout: {timeout} Took: {timer}ms',
+                ['taskid' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
                 $this->loggerName
             );
 
@@ -665,8 +651,8 @@ class Hyper implements HyperInterface
                     $stream->close();
                     $e = new RequestException($request, \error_get_last()['message'], 0);
                     yield \log_warning(
-                        'Request: {method} {url} Unset: {timeout} Exception: {exception}',
-                        ['method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
+                        'Task: {taskid} Request: {method} {url} Unset: {timeout} Exception: {exception}',
+                        ['taskid' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
                         $this->loggerName
                     );
 
@@ -675,7 +661,9 @@ class Hyper implements HyperInterface
             }
 
             $headers = \stream_get_meta_data($resource)['wrapper_data'];
-            $this->stream = $stream->taskId($this->httpId);
+
+            // Add task id to stream instance
+            $this->stream = $stream->taskPid($this->httpId);
 
             if ($option['follow_location']) {
                 $headers = $this->filterResponseHeaders($headers);

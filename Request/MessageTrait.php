@@ -30,7 +30,7 @@ trait MessageTrait
 
     protected $httpId = null;
 
-    public function taskId(?int $httpId)
+    public function taskPid(?int $httpId)
     {
         $this->httpId = $httpId;
 

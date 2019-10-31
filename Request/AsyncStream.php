@@ -109,7 +109,7 @@ class AsyncStream implements StreamInterface
         $this->resource = $resource;
     }
 
-    public function taskId(?int $hyperId)
+    public function taskPid(?int $hyperId)
     {
         $this->hyperId = $hyperId;
 
@@ -299,7 +299,7 @@ class AsyncStream implements StreamInterface
             $timer = \microtime(true) - $start;
             if (false !== $buffer) {
                 yield \log_notice(
-                    'Http TaskId: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
+                    'Task: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
                     ['httpId' => $this->hyperId, 'url' => $this->uri, 'chunk' => \FETCH_CHUNK, 'timer' => $timer],
                     \hyper_loggerName()
                 );
@@ -322,10 +322,12 @@ class AsyncStream implements StreamInterface
     {
         $handle =  $this->getResource();
         if (!$this->isReadable() || ($handle === null)) {
+            yield \log_critical('Stream is not readable', \hyper_loggerName());
             throw new \RuntimeException('Stream is not readable');
         }
 
         if ($length < 0) {
+            yield \log_critical('Length parameter cannot be negative', \hyper_loggerName());
             throw new \RuntimeException('Length parameter cannot be negative');
         }
 
@@ -339,7 +341,7 @@ class AsyncStream implements StreamInterface
             $timer = \microtime(true) - $start;
             if (false !== $contents) {
                 yield \log_notice(
-                    'Http TaskId: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
+                    'Task: {httpId} Response: {url} Chunks: {chunk} Took: {timer}ms',
                     ['httpId' => $this->hyperId, 'url' => $this->uri, 'chunk' => $length, 'timer' => $timer],
                     \hyper_loggerName()
                 );
@@ -359,6 +361,7 @@ class AsyncStream implements StreamInterface
     {
         $handle =  $this->getResource();
         if (!$this->isWritable() || ($handle === null)) {
+            yield \log_critical('Stream is not writable', \hyper_loggerName());
             throw new \RuntimeException('Stream is not writable');
         }
 
@@ -372,7 +375,7 @@ class AsyncStream implements StreamInterface
         $timer = \microtime(true) - $start;
         if (false !== $written) {
             yield \log_notice(
-                'Http TaskId: {httpId} Response: {url} Written: {written} Took: {timer}ms',
+                'Task: {httpId} Response: {url} Written: {written} Took: {timer}ms',
                 ['httpId' => $this->hyperId, 'url' => $this->uri, 'written' => $written, 'timer' => $timer],
                 \hyper_loggerName()
             );
