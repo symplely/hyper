@@ -158,14 +158,22 @@ class Hyper implements HyperInterface
          */
         $onRequestNotStarted = function (TaskInterface $tasks, CoroutineInterface $coroutine) {
             try {
-                $tasks->customState('started');
-                $coroutine->execute(true);
+                if ($tasks->getState() === 'running') {
+                    $coroutine->execute(true);
+                } elseif ($tasks->isCustomState('beginning') && !$tasks->completed()) {
+                    $coroutine->schedule($tasks);
+                    //$tasks->run();
+                    $coroutine->execute(true);
+                }
+
+                if ($tasks->completed()) {
+                    $tasks->customState();
+                }
             } catch (\Throwable $error) {
                 $tasks->setState('erred');
                 $tasks->setException($error);
-               // $coroutine->schedule($tasks);
-               // $tasks->run();
-                $coroutine->execute();
+                $coroutine->schedule($tasks);
+                $coroutine->execute(true);
             }
         };
 
@@ -253,7 +261,7 @@ class Hyper implements HyperInterface
                     $timeout = $timeout * \RETRY_MULTIPLY;
                     yield \log_debug(
                         'On task: {taskId} {class}, Retry: {attempts} Timeout: {timeout} Exception: {exception}',
-                        ['taskId' => $this->httpId,'class' => __METHOD__, 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        ['taskId' => $this->httpId, 'class' => __METHOD__, 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
@@ -261,7 +269,7 @@ class Hyper implements HyperInterface
                 } else {
                     yield \log_error(
                         'On task: {taskId} {class}, Timeout: {timeout} Exception: {exception}',
-                        ['taskId' => $this->httpId,'class' => __METHOD__, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        ['taskId' => $this->httpId, 'class' => __METHOD__, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
@@ -488,6 +496,7 @@ class Hyper implements HyperInterface
         $start = \microtime(true);
         $resource = @\fopen($url, 'rb', false, $ctx);
         $timer = \microtime(true) - $start;
+        yield;
 
         if (!\is_resource($resource)) {
             $error = \error_get_last()['message'];
@@ -538,10 +547,10 @@ class Hyper implements HyperInterface
         $version = \explode('/', $parts[0])[1];
         $status = (int) $parts[1];
 
-        if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS))
+        if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS)) {
             $response = Response::create($status)
                 ->withProtocolVersion($version);
-        else {
+        } else {
             yield;
             $response = Response::create($status)
                 ->withProtocolVersion($version)

@@ -293,13 +293,15 @@ class AsyncStream implements StreamInterface
             while (!\feof($handle)) {
                 yield Kernel::readWait($handle, true);
                 $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
+                if ($this->getMetadata('unread_bytes') == 0)
+                    break;
             }
 
             $timer = \microtime(true) - $start;
             if (false !== $buffer) {
                 yield \log_notice(
-                    'On task: {httpId} {class}, Response: {url} Chunks: {chunk} Took: {timer}ms',
-                    ['httpId' => $this->hyperId,'class' => __METHOD__, 'url' => $this->uri, 'chunk' => \FETCH_CHUNK, 'timer' => $timer],
+                    'On task: {httpId} {class}, Response: {url} Received: {transferred} bytes Took: {timer}ms',
+                    ['httpId' => $this->hyperId, 'class' => __METHOD__, 'url' => $this->uri, 'transferred' => \strlen($buffer), 'timer' => $timer],
                     \hyper_loggerName()
                 );
 
@@ -340,8 +342,8 @@ class AsyncStream implements StreamInterface
             $timer = \microtime(true) - $start;
             if (false !== $contents) {
                 yield \log_notice(
-                    'On task: {httpId} {class}, Response: {url} Chunks: {chunk} Took: {timer}ms',
-                    ['httpId' => $this->hyperId,'class' => __METHOD__, 'url' => $this->uri, 'chunk' => $length, 'timer' => $timer],
+                    'On task: {httpId} {class}, Response: {url} Read: {read} bytes Took: {timer}ms',
+                    ['httpId' => $this->hyperId, 'class' => __METHOD__, 'url' => $this->uri, 'read' => \strlen($contents), 'timer' => $timer],
                     \hyper_loggerName()
                 );
 
@@ -374,8 +376,8 @@ class AsyncStream implements StreamInterface
         $timer = \microtime(true) - $start;
         if (false !== $written) {
             yield \log_notice(
-                'On task: {httpId} {class}, Response: {url} Written: {written} Took: {timer}ms',
-                ['httpId' => $this->hyperId,'class' => __METHOD__, 'url' => $this->uri, 'written' => $written, 'timer' => $timer],
+                'On task: {httpId} {class}, Response: {url} Written: {written} bytes Took: {timer}ms',
+                ['httpId' => $this->hyperId, 'class' => __METHOD__, 'url' => $this->uri, 'written' => $written, 'timer' => $timer],
                 \hyper_loggerName()
             );
 

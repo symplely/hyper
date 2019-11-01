@@ -149,7 +149,7 @@ if (!\function_exists('hyper')) {
     \define('BAD_ACCESS', "Invalid access, only HTTP `task` ID's allowed!");
     \define('BAD_ID', "Invalid HTTP `task` ID!");
 
-    \define('FETCH_CHUNK', 4096);
+    \define('FETCH_CHUNK', 8182);
     \define('RETRY_ATTEMPTS', 10);
     \define('RETRY_TIMEOUT', .5); // will be multiplied by RETRY_MULTIPLY
     \define('RETRY_MULTIPLY', 1.5);
