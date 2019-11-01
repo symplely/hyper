@@ -83,19 +83,12 @@ class Hyper implements HyperInterface
 
     public function __construct(?string $loggerName = null)
     {
-        $this->loggerName = empty($loggerName) ? 'HyperLink' : $loggerName;
+        $this->loggerName = empty($loggerName) ? '-' : $loggerName;
         $this->logger = \hyper_logger($this->loggerName);
         if (empty($loggerName)) {
             self::$defaultLogger = true;
             \logger_array(self::$defaultLog, 0xff, 1, null, $this->loggerName);
         }
-    }
-
-    public function taskPid(?int $httpId)
-    {
-        $this->httpId = $httpId;
-
-        return $this;
     }
 
     public function close()
@@ -136,9 +129,9 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public static function waitOptions(int $count = 0, bool $exception = true): void
+    public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true): void
     {
-        Kernel::gatherOptions($count, $exception);
+        Kernel::gatherOptions($count, $exception, $clearAborted);
     }
 
     /**
@@ -191,28 +184,11 @@ class Hyper implements HyperInterface
         /**
          * When updating current/running task list, abort/close responses/requests that will not be used.
          */
-        $onRequestListUpdate = function (TaskInterface $tasks) {
+        $onRequestsToClear = function (TaskInterface $tasks) {
             $tasks->customState('aborted');
             $hyper = $tasks->getCustomData();
             if ($hyper instanceof HyperInterface)
                 $hyper->close();
-        };
-
-        /**
-         * Update and abort/close any responses not part of request count.
-         */
-        $onRequestAborted = function (CoroutineInterface $coroutine, array &$responses, array &$httpIdCount, ?callable $onUpdate = null) {
-            $resultId = \array_keys($responses);
-            $abortList = \array_diff($httpIdCount, $resultId);
-            $currentList = $coroutine->taskList();
-            $finishedList = $coroutine->completedList();
-            foreach ($abortList as $requestId) {
-                if (isset($finishedList[$requestId])) {
-                    Kernel::updateList($coroutine, $requestId, $finishedList, $onUpdate);
-                } elseif (isset($currentList[$requestId])) {
-                    Kernel::updateList($coroutine, $requestId, $currentList, $onUpdate, true);
-                }
-            }
         };
 
         /**
@@ -232,8 +208,7 @@ class Hyper implements HyperInterface
             $onCompletedRequests,
             $onError,
             $onCancel,
-            $onRequestListUpdate,
-            $onRequestAborted
+            $onRequestsToClear
         );
     }
 
@@ -277,16 +252,16 @@ class Hyper implements HyperInterface
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
                     yield \log_debug(
-                        'On task: {taskId} Hyper::selectSendRequest, Retry: {attempts} Timeout: {timeout} Exception: {exception}',
-                        ['taskId' => $this->httpId, 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        'On task: {taskId} {class}, Retry: {attempts} Timeout: {timeout} Exception: {exception}',
+                        ['taskId' => $this->httpId,'class' => __METHOD__, 'attempts' => $attempts, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
                     yield \log_error(
-                        'On task: {taskId} Hyper::selectSendRequest, Timeout: {timeout} Exception: {exception}',
-                        ['taskId' => $this->httpId, 'timeout' =>  $timeout, 'exception' => $requestError],
+                        'On task: {taskId} {class}, Timeout: {timeout} Exception: {exception}',
+                        ['taskId' => $this->httpId,'class' => __METHOD__, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
@@ -523,8 +498,8 @@ class Hyper implements HyperInterface
             }
 
             yield \log_error(
-                'On task: {taskId} Hyper::sendRequest, failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
-                ['taskId' => $this->httpId, 'timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
+                'On task: {taskId} {class}, failed In: {timer}ms on Timeout: {timeout} with Exception: {exception}',
+                ['taskId' => $this->httpId, 'class' => __METHOD__, 'timer' => $timer, 'timeout' => $this->timeout, 'exception' => $e],
                 $this->loggerName
             );
 
@@ -532,8 +507,8 @@ class Hyper implements HyperInterface
         }
 
         yield \log_info(
-            'On task: {taskId} Hyper::sendRequest, {method} {url} Timeout: {timeout} Took: {timer}ms',
-            ['taskId' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
+            'On task: {taskId} {class}, {method} {url} Timeout: {timeout} Took: {timer}ms',
+            ['taskId' => $this->httpId, 'class' => __METHOD__, 'method' => $method, 'url' => $url, 'timeout' => $this->timeout, 'timer' => $timer],
             $this->loggerName
         );
 
@@ -542,8 +517,8 @@ class Hyper implements HyperInterface
             $stream->close();
             $e = new RequestException($request, \error_get_last()['message'], 0);
             yield \log_warning(
-                'On task: {taskId} Hyper::sendRequest, {method} {url} failed to Set: {timeout} Exception: {exception}',
-                ['taskId' => $this->httpId, 'method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
+                'On task: {taskId} {class}, {method} {url} failed to Set: {timeout} Exception: {exception}',
+                ['taskId' => $this->httpId, 'class' => __METHOD__, 'method' => $method, 'url' => $url, 'timeout' => ($this->timeout * \RETRY_MULTIPLY), 'exception' => $e],
                 $this->loggerName
             );
 

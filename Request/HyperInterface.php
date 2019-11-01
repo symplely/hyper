@@ -27,10 +27,11 @@ interface HyperInterface extends RequestMethodInterface
      * the aws sequence won't be abort/cancelled and will continue to run.
      * - If `false`, exceptions are treated the same as successful response results,
      * and aggregated in the response list.
+     * @param bool $clearAborted - If `true` (default), close/cancel/abort remaining result/responses
      *
      * @throws \LengthException - If the number of tasks less than the desired $count.
      */
-    public static function waitOptions(int $count = 0, bool $exception = true);
+    public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true);
 
     /**
      * Run awaitable HTTP tasks in the httpId sequence concurrently.
