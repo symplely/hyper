@@ -162,7 +162,6 @@ class Hyper implements HyperInterface
                     $coroutine->execute(true);
                 } elseif ($tasks->isCustomState('beginning') && !$tasks->completed()) {
                     $coroutine->schedule($tasks);
-                    //$tasks->run();
                     $coroutine->execute(true);
                 }
 
@@ -491,7 +490,10 @@ class Hyper implements HyperInterface
             \stream_context_set_params($ctx, array('notification' => [$request, 'debug']));
         }
 
-        $this->httpId = yield Kernel::taskId();
+        if (empty($this->httpId)) {
+            $this->httpId = yield Kernel::taskId();
+        }
+
         $url = $request->getUri()->__toString();
         $start = \microtime(true);
         $resource = @\fopen($url, 'rb', false, $ctx);
@@ -547,11 +549,11 @@ class Hyper implements HyperInterface
         $version = \explode('/', $parts[0])[1];
         $status = (int) $parts[1];
 
+        yield;
         if (($method == Request::METHOD_HEAD) || ($method == Request::METHOD_OPTIONS)) {
             $response = Response::create($status)
                 ->withProtocolVersion($version);
         } else {
-            yield;
             $response = Response::create($status)
                 ->withProtocolVersion($version)
                 ->withBody($stream);

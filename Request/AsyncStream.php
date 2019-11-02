@@ -285,7 +285,6 @@ class AsyncStream implements StreamInterface
      */
     public function getContents()
     {
-        yield;
         $handle =  $this->getResource();
         if ($this->isReadable() && ($handle !== null)) {
             $buffer = "";
@@ -293,8 +292,6 @@ class AsyncStream implements StreamInterface
             while (!\feof($handle)) {
                 yield Kernel::readWait($handle, true);
                 $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
-                if ($this->getMetadata('unread_bytes') == 0)
-                    break;
             }
 
             $timer = \microtime(true) - $start;

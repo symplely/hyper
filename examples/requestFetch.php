@@ -52,8 +52,8 @@ function main() {
         echo 'There was a problem: '.$error->getMessage();
     }
 
-    yield \print_defaultLog();
     yield \http_closeLog();
+    yield \print_defaultLog();
     yield \shutdown();
 }
 
