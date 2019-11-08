@@ -285,6 +285,7 @@ class AsyncStream implements StreamInterface
      */
     public function getContents()
     {
+        yield;
         $handle =  $this->getResource();
         if ($this->isReadable() && ($handle !== null)) {
             $buffer = "";
@@ -297,7 +298,7 @@ class AsyncStream implements StreamInterface
             $timer = \microtime(true) - $start;
             if (false !== $buffer) {
                 yield \log_notice(
-                    'On task: {httpId} {class}, Response: {url} Received: {transferred} bytes Took: {timer}ms',
+                    'On task: {httpId} {class}, {url} Received: {transferred} bytes Took: {timer}ms',
                     ['httpId' => $this->hyperId, 'class' => __METHOD__, 'url' => $this->uri, 'transferred' => \strlen($buffer), 'timer' => $timer],
                     \hyper_loggerName()
                 );
@@ -339,7 +340,7 @@ class AsyncStream implements StreamInterface
             $timer = \microtime(true) - $start;
             if (false !== $contents) {
                 yield \log_notice(
-                    'On task: {httpId} {class}, Response: {url} Read: {read} bytes Took: {timer}ms',
+                    'On task: {httpId} {class}, {url} Read: {read} bytes Took: {timer}ms',
                     ['httpId' => $this->hyperId, 'class' => __METHOD__, 'url' => $this->uri, 'read' => \strlen($contents), 'timer' => $timer],
                     \hyper_loggerName()
                 );

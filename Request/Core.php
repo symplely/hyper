@@ -192,15 +192,15 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * Sets the `Logger` instance by.
+     * Create and sets the `Logger` instance by.
      */
     function hyper_logger(?string $name = null): LoggerInterface
     {
         global $__uriLogName__;
 
-        $__uriLogName__ = empty($name) ? 'HyperLink' : $name;
+        $__uriLogName__ = empty($name) ? '-' : $name;
 
-        return \logger_instance($__uriLogName__);
+        return \logger_create($__uriLogName__);
     }
 
     /**
@@ -210,7 +210,32 @@ if (!\function_exists('hyper')) {
     {
         global $__uriLogName__;
 
-        return  empty($__uriLogName__) ? 'HyperLink' : $__uriLogName__;
+        return  empty($__uriLogName__) ? '-' : $__uriLogName__;
+    }
+
+    /**
+     * Shutdown and exit script.
+     * Close/Clear out `ALL` global function instances.
+     *
+     * - This function needs to be prefixed with `yield`
+     */
+    function hyper_shutdown()
+    {
+        global $__uriTag__, $__uriLogName__;
+
+        yield \logger_shutdown();
+        \http_clear();
+        if (\is_array($__uriTag__)) {
+            $uriTags = \array_keys($__uriTag__);
+            foreach ($uriTags as $key) {
+                \http_clear($key);
+            }
+        }
+
+        $__uriLogName__ = null;
+        unset($GLOBALS['__uriLogName__']);
+        \response_shutdown();
+        yield \shutdown();
     }
 
     /**
@@ -344,57 +369,37 @@ if (!\function_exists('hyper')) {
 
         global $__uri__, $__uriTag__;
 
-        return empty($tag) ? $__uri__ : $__uriTag__[$tag];
+        return (empty($tag) || !isset($__uriTag__[$tag])) ? $__uri__ : $__uriTag__[$tag];
     }
 
     /**
-     * Returns an array of the default Logs, if no Logger `writer` was set by.
-     */
-    function http_defaultLog($tag = null): array
-    {
-        $hyper = \http_instance($tag);
-        if ($hyper instanceof HyperInterface)
-            return $hyper->defaultLog();
-
-        return [];
-    }
-
-    /**
-     * Clear default Logs by.
-     */
-    function reset_defaultLog($tag = null)
-    {
-        $hyper = \http_instance($tag);
-        if ($hyper instanceof HyperInterface)
-            $hyper->resetLog();
-    }
-
-    /**
-     * Returns string array or printout of the default Logs by.
-     */
-    function print_defaultLog($tag = null, $return = false)
-    {
-        [, $name] = \http_instance($tag)->logger();
-        yield \logger_commit($name);
-        foreach (\http_defaultLog($tag) as $output) {
-            $lines[] = ($return) ? $output : print $output . \EOL;
-        }
-
-        return $lines;
-    }
-
-    /**
+     * Will wait until any pending logs are committed, and printout the default `arrayWriter` Logs,
+     * only if no Logger backend `writer` was set.
+     *
      * - This function needs to be prefixed with `yield`
      */
-    function http_closeLog($tag = null)
+    function http_printLogs($tag = null)
     {
-        global $__uriLogName__;
+        $hyper = \http_instance($tag);
+        if ($hyper instanceof HyperInterface) {
+            [, $name] = $hyper->logger();
+            return \logger_printLogs($name);
+        }
+    }
 
-        [, $name] = \http_instance($tag)->logger();
-        yield \logger_shutdown($name);
-
-        $__uriLogName__ = null;
-        unset($GLOBALS['__uriLogName__']);
+    /**
+     * Close logger instance, and return array of the default `arrayWriter` Logs,
+     * only if no Logger backend `writer` was set.
+     *
+     * - This function needs to be prefixed with `yield`
+     */
+    function http_closeLog($tag = null, bool $clearLogs = true)
+    {
+        $hyper = \http_instance($tag);
+        if ($hyper instanceof HyperInterface) {
+            [, $name] = $hyper->logger();
+            return \logger_close($name, $clearLogs);
+        }
     }
 
     /**
@@ -422,28 +427,6 @@ if (!\function_exists('hyper')) {
         $hyper = \http_instance($tag);
         if ($hyper instanceof HyperInterface) {
             $hyper->close();
-            $hyper->resetLog();
-        }
-    }
-
-    /**
-     * Close/Clear out `ALL` global `Hyper` function, `Stream` instances.
-     */
-    function http_nuke()
-    {
-        global $__uri__, $__uriTag__;
-
-        \http_flush($__uri__);
-        $__uri__ = null;
-        unset($GLOBALS['__uri__']);
-
-        if (\is_array($__uriTag__)) {
-            $uriTags = \array_keys($__uriTag__);
-            foreach ($uriTags as $key) {
-                \http_flush($key);
-                $__uriTag__[$key] = null;
-                unset($GLOBALS['__uriTag__'][$key]);
-            }
         }
     }
 
@@ -652,22 +635,21 @@ if (!\function_exists('hyper')) {
      *
      * @param \ResponseInterface|mixed $tag
      */
-    function response_nuke()
+    function response_shutdown()
     {
-        global $__uriResponse__, $__uriResponseTag__;
-
-        \response_close($__uriResponse__);
-        $__uriResponse__ = null;
-        unset($GLOBALS['__uriResponse__']);
+        global $__uriResponseTag__;
 
         if (\is_array($__uriResponseTag__)) {
             $uriResponseTags = \array_keys($__uriResponseTag__);
             foreach ($uriResponseTags as $key) {
-                \response_close($key);
-                $__uriResponseTag__[$key] = null;
-                unset($GLOBALS['__uriResponseTag__'][$key]);
+                \response_clear($key);
             }
+
+            $__uriResponseTag__ = null;
+            unset($GLOBALS['__uriResponseTag__']);
         }
+
+        \response_clear();
     }
 
     /**

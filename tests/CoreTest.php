@@ -16,6 +16,7 @@ class CoreTest extends TestCase
 {
     const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net";
     const TARGET_URLS = "https://httpbin.org/";
+    const TARGET_URLS_ = "https://httpstat.us/";
 
     protected $websites = [
         'http://google.com/',
@@ -29,8 +30,6 @@ class CoreTest extends TestCase
     protected function setUp(): void
     {
         \coroutine_clear();
-        \http_nuke();
-        \response_nuke();
     }
 
     public function task_head($websites)
@@ -61,8 +60,9 @@ class CoreTest extends TestCase
             }
         }, $responses);
 
-        yield \http_closeLog();
-        $this->assertNotEmpty(\print_defaultLog(null, true));
+        $this->expectOutputRegex('/[{^\[.+\] (\w+) (.+)?}]/');
+        yield \http_printLogs();
+        $this->assertGreaterThanOrEqual(7, \count(yield \http_closeLog()));
         \http_clear();
         \response_clear();
         $this->assertNull($__uri__);
@@ -76,9 +76,9 @@ class CoreTest extends TestCase
         $this->assertEquals('int', \is_type($int));
         yield \request_abort($int);
         $data = yield from $this->task_head($this->websites);
-        $this->assertEmpty(\http_defaultLog());
         $this->expectOutputString('{"200":3,"400":0}');
         print $data;
+        yield \hyper_shutdown();
     }
 
     public function testRequestHead()
@@ -107,6 +107,7 @@ class CoreTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage(\BAD_ID);
         yield \request_abort(999999);
+        yield \hyper_shutdown();
     }
 
     public function testRequestGet()
@@ -125,7 +126,7 @@ class CoreTest extends TestCase
         foreach ($responses as $key => $urlInstance) {
             $this->assertTrue(\is_type($key, 'int'));
             $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
-            $this->assertTrue(\response_ok($urlInstance));
+            //$this->assertTrue(\response_ok($urlInstance));
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
             $ok = \response_phrase($urlInstance);
             $this->assertEquals(Response::REASON_PHRASES[200], $ok);
@@ -137,6 +138,8 @@ class CoreTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage(\BAD_CALL);
         $this->assertNull(yield \response_xml());
+
+        yield \hyper_shutdown();
     }
 
     public function testRequestPost()
@@ -151,6 +154,8 @@ class CoreTest extends TestCase
         $responses = yield \fetch(
            '\http_options(self::TARGET_URL)'
         );
+
+        yield \hyper_shutdown();
     }
 
     public function testFetch()
@@ -175,8 +180,7 @@ class CoreTest extends TestCase
             $this->assertNotNull($echo);
         }
 
-        \http_nuke();
-        \response_nuke();
+        yield \hyper_shutdown();
     }
 
     public function testFetchFailSkip()
@@ -209,6 +213,7 @@ class CoreTest extends TestCase
 
         $this->expectException(Panicking::class);
         $responses = yield \fetch($pipedream, $httpBin, $bad);
+        yield \hyper_shutdown();
     }
 
     public function testFetchFailInt()
@@ -237,10 +242,11 @@ class CoreTest extends TestCase
         $this->assertEquals('{"success":true}', yield \response_body('pipe'));
         \response_clear('pipe');
 
-        \http_clear('bin');
+        \response_clear('bin');
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage(\BAD_CALL);
         $this->assertEquals('{"success":true}', yield \response_body('bin'));
+        yield \hyper_shutdown();
     }
 
     public function testRequestPut()
@@ -273,6 +279,7 @@ class CoreTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage(\BAD_CALL);
         $this->assertEquals('{"success":true}', yield \response_json('bin'));
+        yield \hyper_shutdown();
     }
 
     public function testRequestPatch()
@@ -300,7 +307,7 @@ class CoreTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage(\BAD_CALL);
         $this->assertSame(true, (yield \response_json('pipe'))->success);
-        \http_clear();
+        yield \hyper_shutdown();
     }
 
     public function testRequestDelete()
@@ -325,11 +332,7 @@ class CoreTest extends TestCase
         $this->assertTrue(\response_has('pipe', "Access-Control-Allow-Methods"));
         $this->assertEquals(Response::STATUS_NO_CONTENT, \response_code('pipe'));
         $this->assertEquals("", yield \response_body('pipe'));
-        \response_clear('pipe');
-
-        $this->assertTrue(\response_has(null, "Access-Control-Allow-Methods"));
-        $this->assertEquals('', yield \response_body());
-        \response_clear();
+        yield \hyper_shutdown();
     }
 
     public function testRequestOptions()
@@ -377,6 +380,7 @@ class CoreTest extends TestCase
         $this->expectException(\LengthException::class);
         \fetchOptions(3);
         $responses = yield \fetch([1]);
+        yield \hyper_shutdown();
     }
 
     public function testRequestFailing()

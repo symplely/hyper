@@ -22,6 +22,8 @@ class HyperTest extends TestCase
     protected function setUp(): void
     {
         \coroutine_clear();
+        \http_clear();
+        \response_clear();
         $this->http = new Hyper;
     }
 

@@ -20,6 +20,7 @@ use Async\Request\Exception\RequestException;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Class Hyper
@@ -72,22 +73,27 @@ class Hyper implements HyperInterface
      *
      * @var float
      */
+
     protected $timeout = \RETRY_TIMEOUT;
 
     protected $httpId = null;
 
+    /**
+     * @var string;
+     */
     protected $loggerName = '';
+
+    /**
+     * @var LoggerInterface;
+     */
     protected $logger = null;
-    protected static $defaultLog = [];
-    protected static $defaultLogger = false;
 
     public function __construct(?string $loggerName = null)
     {
         $this->loggerName = empty($loggerName) ? '-' : $loggerName;
         $this->logger = \hyper_logger($this->loggerName);
         if (empty($loggerName)) {
-            self::$defaultLogger = true;
-            \logger_array(self::$defaultLog, 0xff, 1, null, $this->loggerName);
+            \logger_array(0xff, 1, null, $this->loggerName);
         }
     }
 
@@ -110,20 +116,14 @@ class Hyper implements HyperInterface
         $this->loggerName = '';
     }
 
+    /**
+     * Return the Logger instance and Logger name used
+     *
+     * @return array<LoggerInterface, string>
+     */
     public function logger(): array
     {
         return [$this->logger, $this->loggerName];
-    }
-
-    public function defaultLog(): array
-    {
-        return (self::$defaultLogger) ? self::$defaultLog : [];
-    }
-
-    public function resetLog()
-    {
-        self::$defaultLog = [];
-        self::$defaultLogger = false;
     }
 
     /**
@@ -158,14 +158,14 @@ class Hyper implements HyperInterface
          */
         $onRequestNotStarted = function (TaskInterface $tasks, CoroutineInterface $coroutine) {
             try {
-                if ($tasks->getState() === 'running') {
+                if (($tasks->getState() === 'running') || $tasks->rescheduled()) {
                     $coroutine->execute(true);
                 } elseif ($tasks->isCustomState('beginning') && !$tasks->completed()) {
                     $coroutine->schedule($tasks);
                     $coroutine->execute(true);
                 }
 
-                if ($tasks->completed()) {
+                if ($tasks->completed() || $tasks->erred()) {
                     $tasks->customState();
                 }
             } catch (\Throwable $error) {
@@ -253,9 +253,13 @@ class Hyper implements HyperInterface
         if ($attempts > 0) {
             $this->timeout = ($withTimeout) ? $timeout : \REQUEST_TIMEOUT;
             try {
-                $response = yield $this->sendRequest(($withTimeout) ? $request->withOptions(['timeout' => $timeout]) : $request->withOptions(['timeout' => \REQUEST_TIMEOUT]));
+                $response = yield $this->sendRequest(($withTimeout)
+                    ? $request->withOptions(['timeout' => $timeout])
+                    : $request->withOptions(['timeout' => \REQUEST_TIMEOUT])
+                );
             } catch (ClientException $requestError) {
-                if (\strpos($requestError->getMessage(), 'failed')) {
+                $error = $requestError->getMessage();
+                if (\strpos($error, 'respond')) {
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
                     yield \log_debug(
@@ -266,13 +270,14 @@ class Hyper implements HyperInterface
 
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
+                    $response = null;
                     yield \log_error(
                         'On task: {taskId} {class}, Timeout: {timeout} Exception: {exception}',
                         ['taskId' => $this->httpId, 'class' => __METHOD__, 'timeout' =>  $timeout, 'exception' => $requestError],
                         $this->loggerName
                     );
 
-                    throw $requestError;
+                    return $requestError;
                 }
             }
 
@@ -423,13 +428,21 @@ class Hyper implements HyperInterface
         }
 
         if (\is_array($body)) {
+            $index = 0;
+            $type = '';
+            $data = [];
             $format = null;
-            if (isset($body[0]) && isset($body[1]) && isset($body[2]))
-                [$type, $data, $format] = $body;
-            elseif (isset($body[0]) && isset($body[1]))
-                [$type, $data] = $body;
-            else
-                [$type, $data] = [Body::FORM, $body];
+            foreach ($body as $key => $value) {
+                $index++;
+                if ($index == 1) {
+                    $type = ($key === 0) && \is_string($value) ? $value : Body::FORM;
+                    $data = \is_string($key) ? [$key => $value] : $value;
+                } elseif ($index == 2) {
+                    $data = ($key === 0) || \is_array($value) ? $value : [$key => $value];
+                } elseif ($index == 3) {
+                    $format = $value;
+                }
+            };
 
             $body = new Body($type, $data, $format);
         }
@@ -490,11 +503,11 @@ class Hyper implements HyperInterface
             \stream_context_set_params($ctx, array('notification' => [$request, 'debug']));
         }
 
+        $url = $request->getUri()->__toString();
         if (empty($this->httpId)) {
             $this->httpId = yield Kernel::taskId();
         }
 
-        $url = $request->getUri()->__toString();
         $start = \microtime(true);
         $resource = @\fopen($url, 'rb', false, $ctx);
         $timer = \microtime(true) - $start;
