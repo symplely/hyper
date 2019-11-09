@@ -90,7 +90,7 @@ class CoreTest extends TestCase
     public function taskRequestGet()
     {
         $pipedream = yield \request(new Request(Request::METHOD_GET, self::TARGET_URL));
-        $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS . 'get']);
+        $httpBin = yield \request([Request::METHOD_GET, self::TARGET_URLS_ . '200']);
         $times = yield \request(\http_get('https://nytimes.com'));
 
         $responses = yield \fetch($pipedream, $httpBin, $times);
