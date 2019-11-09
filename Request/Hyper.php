@@ -510,14 +510,15 @@ class Hyper implements HyperInterface
         }
 
         $url = $request->getUri()->__toString();
-        if (empty($this->httpId)) {
-            $this->httpId = yield Kernel::taskId();
-        }
+        yield;
 
         $start = \microtime(true);
         $resource = @\fopen($url, 'rb', false, $ctx);
         $timer = \microtime(true) - $start;
-        yield;
+
+        if (empty($this->httpId)) {
+            $this->httpId = yield Kernel::taskId();
+        }
 
         if (!\is_resource($resource)) {
             $error = \error_get_last()['message'];
