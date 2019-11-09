@@ -292,7 +292,11 @@ class AsyncStream implements StreamInterface
             $start = \microtime(true);
             while (!\feof($handle)) {
                 yield Kernel::readWait($handle, true);
-                $buffer .= \stream_get_contents($handle, \FETCH_CHUNK);
+                $buffer .= \stream_get_contents($handle, \FETCH_CHUNK * 10);
+                //yield;
+                if ($this->getMetadata('unread_bytes') === 0) {
+                    break;
+                }
             }
 
             $timer = \microtime(true) - $start;
