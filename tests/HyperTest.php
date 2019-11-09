@@ -22,8 +22,7 @@ class HyperTest extends TestCase
     protected function setUp(): void
     {
         \coroutine_clear();
-        \http_clear();
-        \response_clear();
+        \hyper_clear();
         $this->http = new Hyper;
     }
 
@@ -152,6 +151,7 @@ class HyperTest extends TestCase
         $response = yield $this->http->sendRequest(
             (new Request(Request::METHOD_GET, $url))
         );
+
         $json = yield \response_json($response);
 
         $this->assertSame($url, $json->url);

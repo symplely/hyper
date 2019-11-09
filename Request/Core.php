@@ -214,16 +214,26 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * Shutdown and exit script.
-     * Close/Clear out `ALL` global function instances.
+     * Close, perform shutdown process on `Logger` and `Coroutine` class,
+     * which will cause the application to exit.
      *
      * - This function needs to be prefixed with `yield`
      */
+
     function hyper_shutdown()
+    {
+        yield \logger_shutdown();
+        \hyper_clear();
+        yield \shutdown();
+    }
+
+    /**
+     * Close/Clear out `ALL` global function instances.
+     */
+    function hyper_clear()
     {
         global $__uriTag__, $__uriLogName__;
 
-        yield \logger_shutdown();
         \http_clear();
         if (\is_array($__uriTag__)) {
             $uriTags = \array_keys($__uriTag__);
@@ -235,7 +245,6 @@ if (!\function_exists('hyper')) {
         $__uriLogName__ = null;
         unset($GLOBALS['__uriLogName__']);
         \response_shutdown();
-        yield \shutdown();
     }
 
     /**
@@ -403,7 +412,7 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * Clear & Close global `http_` Instance by.
+     * Clear & Close global request `http_` Instance by.
      */
     function http_clear($tag = null)
     {

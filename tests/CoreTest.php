@@ -30,6 +30,7 @@ class CoreTest extends TestCase
     protected function setUp(): void
     {
         \coroutine_clear();
+        \hyper_clear();
     }
 
     public function task_head($websites)

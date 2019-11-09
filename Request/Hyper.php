@@ -277,6 +277,12 @@ class Hyper implements HyperInterface
                         $this->loggerName
                     );
 
+                    // Throw, if this method wasn't called by `request/awaitable`, `fetch/wait`,
+                    // or any `http_*` functions. The task id value should be anything beside 1, 2 or null.
+                    if (($this->httpId === 1) || ($this->httpId === 2) || ($this->httpId === null)) {
+                        throw $requestError;
+                    }
+
                     return $requestError;
                 }
             }
@@ -316,7 +322,7 @@ class Hyper implements HyperInterface
             $this->request(Request::METHOD_HEAD, $url, null, $authorizeHeaderOptions)
         );
 
-        if (empty($response) || $response->getStatusCode() === 405) {
+        if (($response instanceof \Throwable) || $response->getStatusCode() === 405) {
             $response = yield $this->selectSendRequest(
                 $this->request(Request::METHOD_GET, $url, null, $authorizeHeaderOptions)
             );
