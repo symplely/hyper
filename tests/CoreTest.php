@@ -127,7 +127,7 @@ class CoreTest extends TestCase
         foreach ($responses as $key => $urlInstance) {
             $this->assertTrue(\is_type($key, 'int'));
             $this->assertInstanceOf(\Psr\Http\Message\ResponseInterface::class, $urlInstance);
-            //$this->assertTrue(\response_ok($urlInstance));
+            $this->assertTrue(\response_ok($urlInstance));
             $this->assertEquals(Response::STATUS_OK, \response_code($urlInstance));
             $ok = \response_phrase($urlInstance);
             $this->assertEquals(Response::REASON_PHRASES[200], $ok);

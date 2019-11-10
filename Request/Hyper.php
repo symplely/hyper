@@ -259,7 +259,7 @@ class Hyper implements HyperInterface
                 );
             } catch (ClientException $requestError) {
                 $error = $requestError->getMessage();
-                if (\strpos($error, 'respond')) {
+                if (\strpos($error, 'respond') || (\strpos($error, 'failed to open stream') && $attempts === \RETRY_ATTEMPTS)) {
                     $attempts--;
                     $timeout = $timeout * \RETRY_MULTIPLY;
                     yield \log_debug(
@@ -270,7 +270,6 @@ class Hyper implements HyperInterface
 
                     $response = yield $this->selectSendRequest($request, $attempts, $timeout, true);
                 } else {
-                    $response = null;
                     yield \log_error(
                         'On task: {taskId} {class}, Timeout: {timeout} Exception: {exception}',
                         ['taskId' => $this->httpId, 'class' => __METHOD__, 'timeout' =>  $timeout, 'exception' => $requestError],
@@ -283,7 +282,8 @@ class Hyper implements HyperInterface
                         throw $requestError;
                     }
 
-                    return $requestError;
+
+                    $response = $requestError;
                 }
             }
 
