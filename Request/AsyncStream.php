@@ -6,6 +6,8 @@ namespace Async\Request;
 
 use Async\Coroutine\Kernel;
 use Async\Coroutine\Coroutine;
+use Async\Coroutine\Exceptions\RuntimeException;
+use Async\Coroutine\Exceptions\InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -67,7 +69,7 @@ class AsyncStream implements StreamInterface
     /**
      * @param resource|string $stream
      *
-     * @throws \InvalidArgumentException If a resource or string isn't given.
+     * @throws InvalidArgumentException If a resource or string isn't given.
      */
     public function __construct($stream = null)
     {
@@ -77,7 +79,7 @@ class AsyncStream implements StreamInterface
         } elseif (\is_string($stream)) {
             $this->setStream($stream);
         } elseif (!\is_resource($stream) || 'stream' !== \get_resource_type($stream)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 'Invalid stream provided; must be a string stream identifier or stream resource'
             );
         }
@@ -94,7 +96,7 @@ class AsyncStream implements StreamInterface
      * Set the internal stream resource.
      *
      * @param string|resource $stream String stream target or stream resource.
-     * @throws \InvalidArgumentException for invalid streams or resources.
+     * @throws InvalidArgumentException for invalid streams or resources.
      */
     protected function setStream($string)
     {
@@ -151,12 +153,12 @@ class AsyncStream implements StreamInterface
         $handle = $this->getResource();
 
         if ($handle === null) {
-            throw new \RuntimeException('Stream is not open.');
+            throw new RuntimeException('Stream is not open.');
         }
 
         $position = \ftell($handle);
         if ($position === false) {
-            throw new \RuntimeException('Unable to get position of stream.');
+            throw new RuntimeException('Unable to get position of stream.');
         }
 
         return $position;
@@ -170,11 +172,11 @@ class AsyncStream implements StreamInterface
         $handle = $this->getResource();
 
         if ($handle === null) {
-            throw new \RuntimeException('Stream is not open.');
+            throw new RuntimeException('Stream is not open.');
         }
 
         if (!\rewind($handle)) {
-            throw new \RuntimeException('Failed to rewind stream.');
+            throw new RuntimeException('Failed to rewind stream.');
         }
     }
 
@@ -205,11 +207,11 @@ class AsyncStream implements StreamInterface
         $handle = $this->getResource();
 
         if ($handle === null) {
-            throw new \RuntimeException('Stream is not open.');
+            throw new RuntimeException('Stream is not open.');
         }
 
         if (0 > \fseek($handle, $offset, $whence)) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 \sprintf('Failed to seek to offset %s.', $offset)
             );
         }
@@ -230,7 +232,7 @@ class AsyncStream implements StreamInterface
             }
 
             return $this->getContents();
-        } catch (\Exception $e) { }
+        } catch (\Throwable $e) { }
 
         return '';
     }
@@ -290,11 +292,18 @@ class AsyncStream implements StreamInterface
         if ($this->isReadable() && ($handle !== null)) {
             $buffer = "";
             $start = \microtime(true);
-            while (!\feof($handle)) {
+            while (true) {
+                $begin = \microtime(true);
                 yield Kernel::readWait($handle, true);
-                $buffer .= \stream_get_contents($handle, \FETCH_CHUNK * 10);
-                //yield;
-                if ($this->getMetadata('unread_bytes') === 0) {
+                $new = \stream_get_contents($handle, \FETCH_CHUNK);
+                $end = \microtime(true);
+
+                if (\is_string($new) && \strlen($new) >= 1) {
+                    $buffer .= $new;
+                }
+
+                $time_used = $end - $begin;
+                if (($time_used >= 0.25) || !\is_string($new) || (\is_string($new) && \strlen($new) < 1)) {
                     break;
                 }
             }
@@ -310,11 +319,11 @@ class AsyncStream implements StreamInterface
                 yield Coroutine::value($buffer);
             } else {
                 yield \log_critical('Unable to get contents from underlying resource', \hyper_loggerName());
-                throw new \RuntimeException('Unable to get contents from underlying resource');
+                throw new RuntimeException('Unable to get contents from underlying resource');
             }
         } else {
             yield \log_critical('Underlying resource is not readable', \hyper_loggerName());
-            throw new \RuntimeException('Underlying resource is not readable');
+            throw new RuntimeException('Underlying resource is not readable');
         }
     }
 
@@ -326,12 +335,12 @@ class AsyncStream implements StreamInterface
         $handle =  $this->getResource();
         if (!$this->isReadable() || ($handle === null)) {
             yield \log_critical('Stream is not readable', \hyper_loggerName());
-            throw new \RuntimeException('Stream is not readable');
+            throw new RuntimeException('Stream is not readable');
         }
 
         if ($length < 0) {
             yield \log_critical('Length parameter cannot be negative', \hyper_loggerName());
-            throw new \RuntimeException('Length parameter cannot be negative');
+            throw new RuntimeException('Length parameter cannot be negative');
         }
 
         if ($length === 0) {
@@ -352,7 +361,7 @@ class AsyncStream implements StreamInterface
                 yield Coroutine::value($contents);
             } else {
                 yield \log_critical('Unable to read from underlying resource', \hyper_loggerName());
-                throw new \RuntimeException('Unable to read from underlying resource');
+                throw new RuntimeException('Unable to read from underlying resource');
             }
         }
     }
@@ -365,7 +374,7 @@ class AsyncStream implements StreamInterface
         $handle =  $this->getResource();
         if (!$this->isWritable() || ($handle === null)) {
             yield \log_critical('Stream is not writable', \hyper_loggerName());
-            throw new \RuntimeException('Stream is not writable');
+            throw new RuntimeException('Stream is not writable');
         }
 
         // We can't know the size after writing anything
@@ -386,7 +395,7 @@ class AsyncStream implements StreamInterface
             yield Coroutine::value($written);
         } else {
             yield \log_critical('Unable to write to underlying resource', \hyper_loggerName());
-            throw new \RuntimeException('Unable to write to underlying resource');
+            throw new RuntimeException('Unable to write to underlying resource');
         }
     }
 
@@ -488,8 +497,8 @@ class AsyncStream implements StreamInterface
      * @param string $mode Mode with which to open the underlying filename/stream.
      *
      * @return StreamInterface
-     * @throws \RuntimeException If the file cannot be opened.
-     * @throws \InvalidArgumentException If the mode is invalid.
+     * @throws RuntimeException If the file cannot be opened.
+     * @throws InvalidArgumentException If the mode is invalid.
      */
     public static function createFromFile(string $filename, string $mode = 'r'): StreamInterface
     {
@@ -516,13 +525,13 @@ class AsyncStream implements StreamInterface
      * @param resource|null $copy
      *
      * @return StreamInterface
-     * @throws \InvalidArgumentException for not an resource.
-     * @throws \RuntimeException for unable to write to underlying resource.
+     * @throws InvalidArgumentException for not an resource.
+     * @throws RuntimeException for unable to write to underlying resource.
      */
     public static function copyResource($resource, $copy = null)
     {
         if (!\is_resource($resource)) {
-            throw new \InvalidArgumentException('Not resource.');
+            throw new InvalidArgumentException('Not resource.');
         }
 
         if (\stream_get_meta_data($resource)['seekable']) {
@@ -535,7 +544,7 @@ class AsyncStream implements StreamInterface
 
         self::setNonBlocking($resource);
         if (!\is_resource($copy)) {
-            throw new \InvalidArgumentException('Not resource.');
+            throw new InvalidArgumentException('Not resource.');
         }
 
         self::setNonBlocking($copy);
@@ -547,7 +556,7 @@ class AsyncStream implements StreamInterface
                 yield Kernel::writeWait($copy, true);
                 $result = \fwrite($copy, $data);
                 if (false === $result) {
-                    throw new \RuntimeException('Unable to write to underlying resource');
+                    throw new RuntimeException('Unable to write to underlying resource');
                 }
             }
         };
@@ -563,8 +572,8 @@ class AsyncStream implements StreamInterface
      * @param resource $destination
      *
      * @return StreamInterface
-     * @throws \InvalidArgumentException for not an resource.
-     * @throws \RuntimeException for unable to write to underlying resource.
+     * @throws InvalidArgumentException for not an resource.
+     * @throws RuntimeException for unable to write to underlying resource.
      */
     public static function pipe($source, $destination): StreamInterface
     {
@@ -612,7 +621,7 @@ class AsyncStream implements StreamInterface
      *
      * @return resource[] Pair of non-blocking socket resources.
      *
-     * @throws \RuntimeException If creating the sockets fails.
+     * @throws RuntimeException If creating the sockets fails.
      */
     public static function pair(): array
     {
@@ -624,7 +633,7 @@ class AsyncStream implements StreamInterface
                 $message .= \sprintf(' Errno: %d; %s', $error['type'], $error['message']);
             }
 
-            throw new \RuntimeException($message);
+            throw new RuntimeException($message);
         }
 
         return [self::setNonBlocking($sockets[0]), self::setNonBlocking($sockets[1])];

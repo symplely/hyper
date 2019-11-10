@@ -48,7 +48,7 @@ function main() {
             $body = yield \response_body($result);
             print \EOL."HTTP Task $id: ". $uri. " - " . \strlen($body) . " bytes" . \EOL.\EOL;
         }
-    } catch (Panicking $error) {
+    } catch (\Throwable $error) {
         echo 'There was a problem: '.$error->getMessage();
     }
 
