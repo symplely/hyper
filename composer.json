@@ -14,7 +14,7 @@
     "require": {
         "php": ">7.1",
 		"ext-json": "*",
-        "symplely/http": "^1.0.9",
+        "symplely/http": "^1.1.0",
         "symplely/logger": "^1.0.7",
         "symplely/coroutine": "^1.3.8"
     },
