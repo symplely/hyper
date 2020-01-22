@@ -179,7 +179,7 @@ class BodyTest extends TestCase
         $this->assertEquals('{"name":"John Doe","email":"jdoe@example.com"}', $jsonBody->getContents());
     }
 
-    public function task_multiple_parts()
+    public function test_multiple_parts_without_yield()
     {
         $multiBody = new Body(Body::MULTI, [
             'form' => new Body(Body::FORM, [
@@ -200,11 +200,6 @@ class BodyTest extends TestCase
             "\r\n{$boundary}\r\nContent-Disposition: form-data; name=\"email\"\r\n\r\nuser@example.com\r\n{$boundary}\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\nExample User\r\n{$boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"plain.txt\"\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nSymplely!\r\n{$boundary}--\r\n",
             $multiBody->getContents()
         );
-    }
-
-    public function test_multiple_parts_without_yield()
-    {
-        \coroutine_run($this->task_multiple_parts());
     }
 
     public function test_multiple_parts_without_key_throws_exception()

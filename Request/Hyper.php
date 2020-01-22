@@ -158,14 +158,14 @@ class Hyper implements HyperInterface
          */
         $onRequestNotStarted = function (TaskInterface $tasks, CoroutineInterface $coroutine) {
             try {
-                if (($tasks->getState() === 'running') || $tasks->rescheduled()) {
+                if (($tasks->getState() === 'running') || $tasks->isRescheduled()) {
                     $coroutine->execute(true);
-                } elseif ($tasks->isCustomState('beginning') && !$tasks->completed()) {
+                } elseif ($tasks->isCustomState('beginning') && !$tasks->isCompleted()) {
                     $coroutine->schedule($tasks);
                     $coroutine->execute(true);
                 }
 
-                if ($tasks->completed() || $tasks->erred()) {
+                if ($tasks->isCompleted() || $tasks->isErred()) {
                     $tasks->customState();
                 }
             } catch (\Throwable $error) {
@@ -233,7 +233,7 @@ class Hyper implements HyperInterface
      */
     public static function awaitable(\Generator $httpFunction, HyperInterface $hyper)
     {
-        return Kernel::await($httpFunction, 'beginning', $hyper);
+        return Kernel::away($httpFunction, 'beginning', $hyper);
     }
 
     /**

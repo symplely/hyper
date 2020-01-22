@@ -16,6 +16,10 @@ interface HyperInterface extends RequestMethodInterface
      */
     public function close();
 
+    public function flush();
+
+    public function logger();
+
     /**
      * Controls how the `wait()` function operates.
      *
