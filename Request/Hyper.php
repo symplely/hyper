@@ -59,12 +59,12 @@ class Hyper implements HyperInterface
     ];
 
     /**
-     * @var StreamInterface
+     * @var AsyncStream|StreamInterface
      */
     protected $stream = null;
 
     /**
-     * @var RequestInterface
+     * @var Request|RequestInterface
      */
     protected $request = null;
 
@@ -253,10 +253,13 @@ class Hyper implements HyperInterface
         if ($attempts > 0) {
             $this->timeout = ($withTimeout) ? $timeout : \REQUEST_TIMEOUT;
             try {
-                $response = yield $this->sendRequest(($withTimeout)
-                    ? $request->withOptions(['timeout' => $timeout])
-                    : $request->withOptions(['timeout' => \REQUEST_TIMEOUT])
-                );
+                if ($request instanceof Request) {
+                    $request = $request->withOptions(['timeout' => $this->timeout]);
+                } else {
+                    $request = $request->withHeader('timeout', $this->timeout);
+                }
+
+                $response = yield $this->sendRequest($request);
             } catch (ClientException $requestError) {
                 $error = $requestError->getMessage();
                 if (\strpos($error, 'respond') || (\strpos($error, 'failed to open stream') && $attempts === \RETRY_ATTEMPTS)) {
@@ -482,7 +485,7 @@ class Hyper implements HyperInterface
             $request = $request->withHeader('Content-Length', (string) $request->getBody()->getSize());
         }
 
-        $useOption = $request->getOptions();
+        $useOption = $request instanceof Request ? $request->getOptions() : [];
         $useOptions = empty($useOptions) ? $option : $useOption;
         $options = \array_merge($useOptions, [
             'method' => $method,
@@ -505,7 +508,7 @@ class Hyper implements HyperInterface
         }
 
         $ctx = \stream_context_create($context);
-        if ($request->debugging()) {
+        if ($request instanceof Request && $request->debugging()) {
             \stream_context_set_params($ctx, array('notification' => [$request, 'debug']));
         }
 

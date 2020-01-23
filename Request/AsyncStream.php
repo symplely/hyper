@@ -474,7 +474,7 @@ class AsyncStream implements StreamInterface
      *
      * @param string $content String content with which to populate the stream.
      *
-     * @return StreamInterface
+     * @return AsyncStream
      */
     public static function create(string $content = '')
     {
@@ -500,7 +500,7 @@ class AsyncStream implements StreamInterface
      * @throws RuntimeException If the file cannot be opened.
      * @throws InvalidArgumentException If the mode is invalid.
      */
-    public static function createFromFile(string $filename, string $mode = 'r'): StreamInterface
+    public static function createFromFile(string $filename, string $mode = 'r'): AsyncStream
     {
         $stream = \fopen($filename, $mode);
         return new self($stream);
@@ -513,9 +513,9 @@ class AsyncStream implements StreamInterface
      *
      * @param resource $resource PHP resource to use as basis of stream.
      *
-     * @return StreamInterface
+     * @return AsyncStream
      */
-    public static function createFromResource($resource): StreamInterface
+    public static function createFromResource($resource): AsyncStream
     {
         return new self($resource);
     }
@@ -524,7 +524,7 @@ class AsyncStream implements StreamInterface
      * @param resource $resource
      * @param resource|null $copy
      *
-     * @return StreamInterface
+     * @return AsyncStream
      * @throws InvalidArgumentException for not an resource.
      * @throws RuntimeException for unable to write to underlying resource.
      */
@@ -571,11 +571,11 @@ class AsyncStream implements StreamInterface
      * @param resource $source
      * @param resource $destination
      *
-     * @return StreamInterface
+     * @return AsyncStream
      * @throws InvalidArgumentException for not an resource.
      * @throws RuntimeException for unable to write to underlying resource.
      */
-    public static function pipe($source, $destination): StreamInterface
+    public static function pipe($source, $destination): AsyncStream
     {
         return self::copyResource($source, $destination);
     }
@@ -593,7 +593,7 @@ class AsyncStream implements StreamInterface
      *
      * @param StreamInterface $stream
      *
-     * @return StreamInterface
+     * @return AsyncStream
      */
     public static function inflate(StreamInterface $stream)
     {
