@@ -21,6 +21,11 @@ interface HyperInterface extends RequestMethodInterface
     public function logger();
 
     /**
+     * Add/check support for gzip and deflate response content encoding.
+     */
+    public function useZlib(bool $onOff = false): HyperInterface;
+
+    /**
      * Controls how the `wait()` function operates.
      *
      * @param int $count - If set, initiate a competitive race between multiple HTTP tasks.
@@ -35,7 +40,10 @@ interface HyperInterface extends RequestMethodInterface
      *
      * @throws \LengthException - If the number of tasks less than the desired $count.
      */
-    public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true);
+    public static function waitOptions(
+        int $count = 0,
+        bool $exception = true,
+        bool $clearAborted = true);
 
     /**
      * Run awaitable HTTP tasks in the httpId sequence concurrently.

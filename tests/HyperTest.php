@@ -8,6 +8,7 @@ use Async\Request\Body;
 use Async\Request\Hyper;
 use Async\Request\Request;
 use Async\Request\Response;
+use Async\Request\AsyncStream;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Client\RequestExceptionInterface;
 use Psr\Http\Client\ClientExceptionInterface;
@@ -17,6 +18,10 @@ class HyperTest extends TestCase
 {
     const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net/";
     const TARGET_URLS = "https://httpbin.org/";
+
+    /**
+     * @var Hyper
+     */
     protected $http;
 
     protected function setUp(): void
@@ -135,7 +140,6 @@ class HyperTest extends TestCase
         $json = yield \response_json($response);
 
         $this->assertTrue(\response_has($response, "Access-Control-Allow-Origin"));
-        $this->assertTrue($response->hasHeader('X-Content-Type-Options'));
         $this->assertSame('Symplely!', $json->headers->{'X-Added-Header'});
         $this->assertSame('Hyper', $json->headers->{'X-Http-Client'});
     }
@@ -228,5 +232,69 @@ class HyperTest extends TestCase
     public function testRequestNotification()
     {
         \coroutine_run($this->taskRequestNotification());
+    }
+
+    public function taskCompressingClientBody()
+    {
+        $request = $this->http->useZlib(true)->request('GET', self::TARGET_URLS . 'gzip');
+        $response = yield $this->http->sendRequest($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $body = \json_decode(yield $response->getBody()->getContents(), true);
+
+        $this->assertTrue($body['gzipped']);
+        $this->assertFalse($response->hasHeader('content-encoding'));
+        $this->assertEquals('httpbin.org', $body['headers']['Host']);
+    }
+
+    /**
+     * @requires function inflate_init
+     */
+    public function testCompressingClient()
+    {
+        \coroutine_run($this->taskCompressingClientBody());
+    }
+
+    public function taskDeflateResponse()
+    {
+        $request = $this->http->useZlib(true)->request('GET', self::TARGET_URLS . 'deflate');
+        $response = yield $this->http->sendRequest($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+
+        $result = \json_decode(yield $response->getBody()->getContents(), true);
+
+        $this->assertTrue($result['deflated']);
+    }
+
+    /**
+     * @requires extension zlib
+     */
+    public function testDeflateResponse()
+    {
+        \coroutine_run($this->taskDeflateResponse());
+    }
+
+    public function taskBodyStream()
+    {
+        $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
+        $request = $request->withHeader('Content-Type', 'application/json; charset="utf-8"');
+        $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb'));
+
+        $response = yield $this->http->sendRequest($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals(
+            file_get_contents(__FILE__),
+            \json_decode(yield $response->getBody()->getContents(), true)['data']
+        );
+    }
+
+    /**
+     * @requires extension zlib
+     */
+    public function testBodyStream()
+    {
+        \coroutine_run($this->taskBodyStream());
     }
 }

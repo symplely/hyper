@@ -73,7 +73,6 @@ class Hyper implements HyperInterface
      *
      * @var float
      */
-
     protected $timeout = \RETRY_TIMEOUT;
 
     protected $httpId = null;
@@ -87,6 +86,13 @@ class Hyper implements HyperInterface
      * @var LoggerInterface;
      */
     protected $logger = null;
+
+    /**
+     * flag for gzip and deflate response content encoding support.
+     *
+     * @var bool
+     */
+    protected $hasZlib = false;
 
     public function __construct(?string $loggerName = null)
     {
@@ -110,10 +116,22 @@ class Hyper implements HyperInterface
         $this->request = null;
         $this->stream = null;
         $this->httpId = null;
+        $this->hasZlib = false;
         $this->timeout = \RETRY_TIMEOUT;
 
         $this->logger = null;
         $this->loggerName = '';
+    }
+
+    public function useZlib(bool $onOff = false): HyperInterface
+    {
+        if (\function_exists('inflate_init') && $onOff) {
+            $this->hasZlib = true;
+        } else {
+            $this->hasZlib = false;
+        }
+
+        return $this;
     }
 
     /**
@@ -129,8 +147,11 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public static function waitOptions(int $count = 0, bool $exception = true, bool $clearAborted = true): void
-    {
+    public static function waitOptions(
+        int $count = 0,
+        bool $exception = true,
+        bool $clearAborted = true
+    ): void {
         Kernel::gatherOptions($count, $exception, $clearAborted);
     }
 
@@ -468,6 +489,11 @@ class Hyper implements HyperInterface
 
             $request = $request->withBody($body);
         }
+
+        if ($this->hasZlib) {
+            $request = $request->withAddedHeader('Accept-Encoding', 'gzip, deflate, identity');
+        }
+
         $this->request = $request;
 
         return $request;
@@ -584,6 +610,28 @@ class Hyper implements HyperInterface
 
         foreach ($this->buildResponseHeaders($headers) as $key => $value) {
             $response = $response->withHeader($key, $value);
+        }
+
+        while ($this->hasZlib && '' !== ($encoding = \strtolower($response->getHeaderLine('Content-Encoding')))) {
+            switch ($encoding) {
+                case 'gzip':
+                    $encoding = \ZLIB_ENCODING_GZIP;
+                    break;
+                case 'deflate':
+                    $encoding = \ZLIB_ENCODING_DEFLATE;
+                    break;
+                default:
+                    break 2;
+            }
+
+            yield;
+            if ($response->getBody()->isSeekable()) {
+                $response->getBody()->rewind();
+            }
+
+            $response = $response->withBody($stream->zlib(true, (int) $encoding));
+            $response = $response->withoutHeader('Content-Encoding');
+            break;
         }
 
         return $response;

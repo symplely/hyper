@@ -64,7 +64,17 @@ class AsyncStream implements StreamInterface
      */
     private $hyperId;
 
-    protected static $nonBlocking = [];
+    /**
+     * @var bool
+     */
+    private $hasZlib;
+
+    /**
+     * @var int
+     */
+    private $context;
+
+    private static $nonBlocking = [];
 
     /**
      * @param resource|string $stream
@@ -112,6 +122,22 @@ class AsyncStream implements StreamInterface
     public function taskPid(?int $hyperId)
     {
         $this->hyperId = $hyperId;
+
+        return $this;
+    }
+
+    /**
+     * @param bool $zlib has support for gzip and deflate response content.
+     * @param int $encoding compression algorithm used, see `inflate_init()`
+     *
+     * @see http://php.net/manual/en/function.inflate-init.php
+     */
+    public function zlib(bool $zlib = false, int $encoding = 0)
+    {
+        if (\function_exists('inflate_init') && $zlib && ($encoding > 0)) {
+            $this->context = @\inflate_init($encoding);
+            $this->hasZlib = true;
+        }
 
         return $this;
     }
@@ -263,6 +289,8 @@ class AsyncStream implements StreamInterface
         $this->writable = false;
         $this->seekable = false;
         $this->hyperId = null;
+        $this->hasZlib = false;
+        $this->context = null;
         self::$nonBlocking = [];
 
         return $resource;
@@ -295,7 +323,7 @@ class AsyncStream implements StreamInterface
             while (true) {
                 $begin = \microtime(true);
                 yield Kernel::readWait($handle, true);
-                $new = \stream_get_contents($handle, \FETCH_CHUNK);
+                $new = $this->chunk($handle, \FETCH_CHUNK);
                 $end = \microtime(true);
 
                 if (\is_string($new) && \strlen($new) >= 1) {
@@ -348,7 +376,7 @@ class AsyncStream implements StreamInterface
         } else {
             $start = \microtime(true);
             yield Kernel::readWait($handle, true);
-            $contents = \fread($handle, $length);
+            $contents = $this->chunk($handle, $length);
 
             $timer = \microtime(true) - $start;
             if (false !== $contents) {
@@ -364,6 +392,34 @@ class AsyncStream implements StreamInterface
                 throw new RuntimeException('Unable to read from underlying resource');
             }
         }
+    }
+
+    /**
+     * Binary-safe file read
+     *
+     * @param resource $handle
+     * @param integer|null $length
+     * @return string
+     */
+    protected function chunk($handle, ?int $length = null): string
+    {
+        if ($this->hasZlib) {
+            while (!$this->eof()) {
+                $chunk = @\inflate_add($this->context, \fread($handle, 8192), \ZLIB_SYNC_FLUSH);
+
+                if ($chunk !== '') {
+                    return $chunk;
+                }
+            }
+
+            try {
+                return @\inflate_add($this->context, '', \ZLIB_FINISH);
+            } finally {
+                $this->context = null;
+            }
+        }
+
+        return \fread($handle, $length);
     }
 
     /**
@@ -578,42 +634,6 @@ class AsyncStream implements StreamInterface
     public static function pipe($source, $destination): AsyncStream
     {
         return self::copyResource($source, $destination);
-    }
-
-    /**
-     * Uses PHP's zlib.inflate filter to inflate deflate or gzipped content.
-     *
-     * This stream decorator skips the first 10 bytes of the given stream to remove
-     * the gzip header, converts the provided stream to a PHP stream resource,
-     * then appends the zlib.inflate filter. The stream is then converted back
-     * to a Guzzle stream resource to be used as a Guzzle stream.
-     *
-     * @link http://tools.ietf.org/html/rfc1952
-     * @link http://php.net/manual/en/filters.compression.php
-     *
-     * @param StreamInterface $stream
-     *
-     * @return AsyncStream
-     */
-    public static function inflate(StreamInterface $stream)
-    {
-        $stream->rewind();
-
-        yield $stream->read(10);
-
-        $resource = \fopen('php://temp', 'rb+');
-
-        while (!$stream->eof()) {
-            $data = yield $stream->read(1048576);
-            yield Kernel::writeWait($resource, true);
-            \fwrite($resource, $data);
-        }
-
-        \fseek($resource, 0);
-
-        \stream_filter_append($resource, "zlib.inflate", \STREAM_FILTER_READ);
-
-        return self::copyResource($resource);
     }
 
     /**
