@@ -444,7 +444,7 @@ class Hyper implements HyperInterface
         }
 
         // Add requested specific options..
-        if (!empty($options)) {
+        if (!empty($options) && $request instanceof Request) {
             // Add with defaults also.
             $useOptions = \array_merge($defaultOptions, $options);
             $request = $request->withOptions($useOptions);
@@ -512,7 +512,7 @@ class Hyper implements HyperInterface
         }
 
         $useOption = $request instanceof Request ? $request->getOptions() : [];
-        $useOptions = empty($useOptions) ? $option : $useOption;
+        $useOptions = empty($useOption) ? $option : $useOption;
         $options = \array_merge($useOptions, [
             'method' => $method,
             'protocol_version' => $request->getProtocolVersion(),
@@ -631,6 +631,7 @@ class Hyper implements HyperInterface
 
             $response = $response->withBody($stream->zlib(true, (int) $encoding));
             $response = $response->withoutHeader('Content-Encoding');
+            $response = $response->withoutHeader('Content-Length');
             break;
         }
 

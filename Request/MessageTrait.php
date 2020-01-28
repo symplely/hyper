@@ -28,15 +28,6 @@ trait MessageTrait
      */
     protected $debug = false;
 
-    protected $httpId = null;
-
-    public function taskPid(?int $httpId)
-    {
-        $this->httpId = $httpId;
-
-        return $this;
-    }
-
     public function withOptions(array $options = [])
     {
         $message = clone $this;
