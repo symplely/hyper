@@ -247,10 +247,48 @@ class AsyncStreamTest extends TestCase
         $ret = yield AsyncStream::copyResource($readable, $writable);
 
         $this->assertSame($writable->getResource(), $ret->getResource());
+        $this->assertSame('hello', yield $ret->getContents());
+
+        $readable->close();
+        $writable->close();
+        $ret->close();
     }
 
     public function testCopyReturnsDestinationStream()
     {
         \coroutine_run($this->taskCopyReturnsDestinationStream());
+    }
+
+    public function taskCopyNullReturnsNewStream()
+    {
+        $readable = new AsyncStream('hello world');
+        $ret = yield AsyncStream::copyResource($readable);
+
+        $this->assertNotSame($readable->getResource(), $ret->getResource());
+        $this->assertSame('hello world', yield $ret->getContents());
+
+        $readable->close();
+        $ret->close();
+    }
+
+    public function testCopyNullReturnsNewStream()
+    {
+        \coroutine_run($this->taskCopyNullReturnsNewStream());
+    }
+
+    public function testPair()
+    {
+        $socket = AsyncStream::pair();
+
+        $this->assertInternalType('resource', $socket[0]);
+        $this->assertInternalType('resource', $socket[1]);
+
+        $this->assertSame('stream', get_resource_type($socket[0]));
+        $this->assertSame('stream', get_resource_type($socket[1]));
+
+        $string = 'test';
+
+        fwrite($socket[0], $string);
+        $this->assertSame($string, fread($socket[1], 8192));
     }
 }
