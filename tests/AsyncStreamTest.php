@@ -236,4 +236,21 @@ class AsyncStreamTest extends TestCase
     {
         \coroutine_run($this->taskStreamReadingWithNegativeLength());
     }
+
+    public function taskCopyReturnsDestinationStream()
+    {
+        $readable = new AsyncStream('hello');
+
+        $r = fopen('php://temp', 'w+');
+        $writable = new AsyncStream($r);
+
+        $ret = yield AsyncStream::copyResource($readable, $writable);
+
+        $this->assertSame($writable->getResource(), $ret->getResource());
+    }
+
+    public function testCopyReturnsDestinationStream()
+    {
+        \coroutine_run($this->taskCopyReturnsDestinationStream());
+    }
 }

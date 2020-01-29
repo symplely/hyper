@@ -577,63 +577,52 @@ class AsyncStream implements StreamInterface
     }
 
     /**
-     * @param resource $resource
-     * @param resource|null $copy
+     * @param StreamInterface|resource $source
+     * @param StreamInterface|resource|null $destination
      *
      * @return AsyncStream
      * @throws InvalidArgumentException for not an resource.
      * @throws RuntimeException for unable to write to underlying resource.
      */
-    public static function copyResource($resource, $copy = null)
+    public static function copyResource($source, $destination = null)
     {
-        if (!\is_resource($resource)) {
+        $source = $source instanceof AsyncStream ? $source->getResource() : $source;
+        $destination = $destination instanceof AsyncStream ? $destination->getResource() : $destination;
+        if (!\is_resource($source)) {
             throw new InvalidArgumentException('Not resource.');
         }
 
-        if (\stream_get_meta_data($resource)['seekable']) {
-            \rewind($resource);
+        if (\stream_get_meta_data($source)['seekable']) {
+            \rewind($source);
         }
 
-        if (empty($copy)) {
-            $copy = \fopen('php://temp', 'rb+');
+        if (empty($destination)) {
+            $destination = \fopen('php://temp', 'rb+');
         }
 
-        self::setNonBlocking($resource);
-        if (!\is_resource($copy)) {
+        self::setNonBlocking($source);
+        if (!\is_resource($destination)) {
             throw new InvalidArgumentException('Not resource.');
         }
 
-        self::setNonBlocking($copy);
-        while (!\feof($resource)) {
-            yield Kernel::readWait($resource, true);
-            $data = \stream_get_contents($resource, \FETCH_CHUNK);
+        self::setNonBlocking($destination);
+        while (!\feof($source)) {
+            yield Kernel::readWait($source, true);
+            $data = \stream_get_contents($source, \FETCH_CHUNK);
             $count = \strlen($data);
             if ($count) {
-                yield Kernel::writeWait($copy, true);
-                $result = \fwrite($copy, $data);
+                yield Kernel::writeWait($destination, true);
+                $result = \fwrite($destination, $data);
                 if (false === $result) {
                     throw new RuntimeException('Unable to write to underlying resource');
                 }
             }
         };
 
-        $stream = new self($copy);
+        $stream = new self($destination);
         $stream->rewind();
 
         return $stream;
-    }
-
-    /**
-     * @param resource $source
-     * @param resource $destination
-     *
-     * @return AsyncStream
-     * @throws InvalidArgumentException for not an resource.
-     * @throws RuntimeException for unable to write to underlying resource.
-     */
-    public static function pipe($source, $destination): AsyncStream
-    {
-        return self::copyResource($source, $destination);
     }
 
     /**
