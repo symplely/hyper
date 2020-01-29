@@ -629,7 +629,7 @@ class Hyper implements HyperInterface
                 $response->getBody()->rewind();
             }
 
-            $response = $response->withBody($stream->zlib(true, (int) $encoding));
+            $response = $response->withBody($stream->inflate(true, (int) $encoding));
             $response = $response->withoutHeader('Content-Encoding');
             $response = $response->withoutHeader('Content-Length');
             break;

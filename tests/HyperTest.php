@@ -279,7 +279,7 @@ class HyperTest extends TestCase
     {
         $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
         $request = $request->withHeader('Content-Type', 'application/json; charset="utf-8"');
-        $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb'));
+        $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb', true));
 
         $response = yield $this->http->sendRequest($request);
 
