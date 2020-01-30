@@ -297,7 +297,7 @@ class AsyncStreamTest extends TestCase
         fwrite($socket[0], $string);
         $this->assertSame($string, fread($socket[1], 8192));
     }
-
+/*
     public function taskBodyStream()
     {
         $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
@@ -319,6 +319,7 @@ class AsyncStreamTest extends TestCase
     /**
      * @requires extension zlib
      */
+    /*
     public function testBodyStream()
     {
         \coroutine_run($this->taskBodyStream());
@@ -345,8 +346,10 @@ class AsyncStreamTest extends TestCase
     /**
      * @requires extension zlib
      */
+    /*
     public function testDeflateBodyStream()
     {
         \coroutine_run($this->taskDeflateBodyStream());
     }
+*/
 }
