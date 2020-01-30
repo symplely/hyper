@@ -11,6 +11,9 @@ use PHPUnit\Framework\TestCase;
 
 class AsyncStreamTest extends TestCase
 {
+    const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net/";
+    const TARGET_URLS = "https://httpbin.org/";
+
     protected function setUp(): void
     {
         \coroutine_clear();
