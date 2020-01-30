@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Async\Tests;
 
+use Async\Request\Hyper;
 use Async\Request\AsyncStream;
 use Psr\Http\Message\StreamInterface;
 use PHPUnit\Framework\TestCase;
