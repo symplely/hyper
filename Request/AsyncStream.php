@@ -90,13 +90,16 @@ class AsyncStream implements StreamInterface
 
     /**
      * @param resource|string $stream
+     * @param string $zlib gzip stream with inflate or deflate, if available.
      *
      * @throws InvalidArgumentException If a resource or string isn't given.
      */
     public function __construct($stream = null, ?string $zlib = null, int $encoding = 0, int $level = 1)
     {
-        if (\in_array($zlib, ['inflate', 'deflate'])) {
-            \call_user_func([$this, $zlib], true, $encoding, $level);
+        if ($zlib == 'inflate') {
+            $this->inflate(true, $encoding);
+        } elseif ($zlib == 'deflate') {
+            $this->deflate(true, $encoding, $level);
         }
 
         if (\is_resource($stream)) {
@@ -338,10 +341,6 @@ class AsyncStream implements StreamInterface
         $this->hyperId = null;
         $this->context = null;
         $this->contextInflate = null;
-        if ($this->hasZlib && !empty($this->contextDeflate)) {
-            self::chunkWrite($this, $resource, '');
-        }
-
         $this->contextDeflate = null;
         $this->hasZlib = false;
         self::$nonBlocking = [];
@@ -383,8 +382,14 @@ class AsyncStream implements StreamInterface
                     $buffer .= $new;
                 }
 
+
                 $time_used = $end - $begin;
                 if (($time_used >= 0.25) || !\is_string($new) || (\is_string($new) && \strlen($new) < 1)) {
+                    if ($this->hasZlib && !empty($this->contextInflate)) {
+                        $buffer .= @\inflate_add($this->contextInflate, '', \ZLIB_FINISH);
+                        $this->contextInflate = null;
+                    }
+
                     break;
                 }
             }
@@ -460,7 +465,6 @@ class AsyncStream implements StreamInterface
         if ($stream->hasZlib && !empty($stream->contextInflate)) {
             while (!$stream->eof()) {
                 $chunk = @\inflate_add($stream->contextInflate, \fread($handle, 8192), \ZLIB_SYNC_FLUSH);
-
                 if ($chunk !== '') {
                     return $chunk;
                 }
@@ -614,13 +618,7 @@ class AsyncStream implements StreamInterface
     public static function create(string $content = '', bool $compress = false)
     {
         $stream = new self($content, ($compress ? 'deflate' : null));
-        yield Kernel::writeWait($stream->resource);
-        self::chunkWrite($stream, $stream->resource, $content);
-        if ($stream->hasZlib && !empty($stream->contextDeflate)) {
-            self::chunkWrite($stream, $stream->resource, '');
-        }
-
-        \rewind($stream->resource);
+        yield;
         return $stream;
     }
 
@@ -634,16 +632,41 @@ class AsyncStream implements StreamInterface
      *
      * @param string $filename Filename or stream URI to use as basis of stream.
      * @param string $mode Mode with which to open the underlying filename/stream.
-     * @param bool $compress the stream should be gzip, if available.
      *
      * @return StreamInterface
      * @throws RuntimeException If the file cannot be opened.
      * @throws InvalidArgumentException If the mode is invalid.
      */
-    public static function createFromFile(string $filename, string $mode = 'r', bool $compress = false): AsyncStream
+    public static function createFromFile(string $filename, string $mode = 'r'): AsyncStream
     {
         $stream = \fopen($filename, $mode);
-        return new self($stream, ($compress ? 'deflate' : null));
+        return new self($stream);
+    }
+
+    /**
+     * Create a compress stream from an existing file.
+     *
+     * The file MUST be opened using the given mode, which may be any mode
+     * supported by the `fopen` function.
+     *
+     * The `$filename` MAY be any string supported by `fopen()`.
+     *
+     * @param string $filename Filename or stream URI to use as basis of stream.
+     * @param string $mode Mode with which to open the underlying filename/stream.
+     *
+     * @return StreamInterface
+     * @throws RuntimeException If the file cannot be opened.
+     * @throws InvalidArgumentException If the mode is invalid.
+     */
+    public static function createDeflateFromFile(string $filename, string $mode = 'r')
+    {
+        $stream = \fopen($filename, $mode);
+        $instance = new self($stream);
+        $contents = yield $instance->getContents();
+        $instance->close();
+
+        $instance = yield self::create($contents, true);
+        return $instance;
     }
 
     /**

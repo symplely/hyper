@@ -279,7 +279,7 @@ class HyperTest extends TestCase
     {
         $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
         $request = $request->withHeader('Content-Type', 'application/json; charset="utf-8"');
-        $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb', true));
+        $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb'));
 
         $response = yield $this->http->sendRequest($request);
 
@@ -296,5 +296,29 @@ class HyperTest extends TestCase
     public function testBodyStream()
     {
         \coroutine_run($this->taskBodyStream());
+    }
+
+    public function taskDeflateBodyStream()
+    {
+        $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
+        $request = $request->withBody(yield AsyncStream::createDeflateFromFile(__FILE__, 'rb', true));
+
+        $response = yield $this->http->sendRequest($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $content = yield $response->getBody()->getContents();
+        $response->getBody()->close();
+        $this->assertNotEquals(
+            file_get_contents(__FILE__),
+            \json_decode($content, true)['data']
+        );
+    }
+
+    /**
+     * @requires extension zlib
+     */
+    public function testDeflateBodyStream()
+    {
+        \coroutine_run($this->taskDeflateBodyStream());
     }
 }
