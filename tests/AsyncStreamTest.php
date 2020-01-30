@@ -13,6 +13,8 @@ class AsyncStreamTest extends TestCase
     protected function setUp(): void
     {
         \coroutine_clear();
+        \hyper_clear();
+        $this->http = new Hyper;
     }
 
     public function testConstructorThrowsExceptionOnInvalidArgument()

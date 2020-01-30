@@ -473,7 +473,7 @@ class AsyncStream implements StreamInterface
                 return @\inflate_add($stream->contextInflate, '', \ZLIB_FINISH);
             } finally {
                 $stream->contextInflate = null;
-                return null;
+                return '';
             }
         }
 
