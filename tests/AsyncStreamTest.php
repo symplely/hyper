@@ -308,7 +308,6 @@ class AsyncStreamTest extends TestCase
 
         $this->assertEquals(200, $response->getStatusCode());
         $content = yield $response->getBody()->getContents();
-        $response->getBody()->close();
 
         $this->assertEquals(
             file_get_contents(__FILE__),
@@ -334,7 +333,6 @@ class AsyncStreamTest extends TestCase
 
         $this->assertEquals(200, $response->getStatusCode());
         $content = yield $response->getBody()->getContents();
-        $response->getBody()->close();
 
         $this->assertEquals(
             file_get_contents(__FILE__),
