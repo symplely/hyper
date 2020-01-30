@@ -137,6 +137,10 @@ class AsyncStream implements StreamInterface
         self::setNonBlocking($resource);
         Kernel::writeWait($resource);
         self::chunkWrite($this, $resource, $string);
+        if ($this->hasZlib && \is_resource($this->contextDeflate)) {
+            self::chunkWrite($this, $resource, '');
+        }
+
         \rewind($resource);
 
         $this->resource = $resource;
@@ -469,12 +473,9 @@ class AsyncStream implements StreamInterface
                 }
             }
 
-            try {
-                return @\inflate_add($stream->contextInflate, '', \ZLIB_FINISH);
-            } finally {
-                $stream->contextInflate = null;
-                return '';
-            }
+            $resource = $stream->contextInflate;
+            $stream->contextInflate = null;
+            return @\inflate_add($resource, '', \ZLIB_FINISH);
         }
 
         return \fread($handle, $length);

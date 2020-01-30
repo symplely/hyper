@@ -302,12 +302,13 @@ class AsyncStreamTest extends TestCase
     {
         $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
         $request = $request->withHeader('Content-Type', 'application/json; charset="utf-8"');
-        $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb'));
+        $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb+'));
 
         $response = yield $this->http->sendRequest($request);
 
         $this->assertEquals(200, $response->getStatusCode());
         $content = yield $response->getBody()->getContents();
+        $response->getBody()->close();
 
         $this->assertEquals(
             file_get_contents(__FILE__),
@@ -333,6 +334,7 @@ class AsyncStreamTest extends TestCase
 
         $this->assertEquals(200, $response->getStatusCode());
         $content = yield $response->getBody()->getContents();
+        $response->getBody()->close();
 
         $this->assertEquals(
             file_get_contents(__FILE__),
