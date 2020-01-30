@@ -94,7 +94,11 @@ class AsyncStream implements StreamInterface
      *
      * @throws InvalidArgumentException If a resource or string isn't given.
      */
-    public function __construct($stream = null, ?string $zlib = null, int $encoding = 0, int $level = 1)
+    public function __construct(
+        $stream = null,
+        ?string $zlib = null,
+        int $encoding = 0,
+        int $level = 1)
     {
         if ($zlib == 'inflate') {
             $this->inflate(true, $encoding);
@@ -133,10 +137,6 @@ class AsyncStream implements StreamInterface
         self::setNonBlocking($resource);
         Kernel::writeWait($resource);
         self::chunkWrite($this, $resource, $string);
-        if ($this->hasZlib && !empty($this->contextDeflate)) {
-            self::chunkWrite($this, $resource, '');
-        }
-
         \rewind($resource);
 
         $this->resource = $resource;
@@ -176,12 +176,12 @@ class AsyncStream implements StreamInterface
      *
      * @see http://php.net/manual/en/function.deflate-init.php
      */
-    public function deflate(bool $zlib = false, int $encoding = \ZLIB_ENCODING_RAW, int $level = 1)
+    public function deflate(bool $zlib = false, int $encoding = \ZLIB_ENCODING_DEFLATE, int $level = 1)
     {
         if (\function_exists('deflate_init') && $zlib) {
             $this->hasZlib = true;
             $this->contextDeflate = @\deflate_init(
-                ($encoding == 0 ? \ZLIB_ENCODING_RAW : $encoding),
+                ($encoding == 0 ? \ZLIB_ENCODING_DEFLATE : $encoding),
                 [
                     'level' => $level
                 ]
@@ -339,7 +339,6 @@ class AsyncStream implements StreamInterface
         $this->writable = false;
         $this->seekable = false;
         $this->hyperId = null;
-        $this->context = null;
         $this->contextInflate = null;
         $this->contextDeflate = null;
         $this->hasZlib = false;
@@ -385,11 +384,6 @@ class AsyncStream implements StreamInterface
 
                 $time_used = $end - $begin;
                 if (($time_used >= 0.25) || !\is_string($new) || (\is_string($new) && \strlen($new) < 1)) {
-                    if ($this->hasZlib && !empty($this->contextInflate)) {
-                        $buffer .= @\inflate_add($this->contextInflate, '', \ZLIB_FINISH);
-                        $this->contextInflate = null;
-                    }
-
                     break;
                 }
             }
@@ -401,6 +395,11 @@ class AsyncStream implements StreamInterface
                     ['httpId' => $this->hyperId, 'class' => __METHOD__, 'url' => $this->uri, 'transferred' => \strlen($buffer), 'timer' => $timer],
                     \hyper_loggerName()
                 );
+
+                if ($this->hasZlib && \is_resource($this->contextInflate)) {
+                    $buffer .= @\inflate_add($this->contextInflate, '', \ZLIB_FINISH);
+                    $this->contextInflate = null;
+                }
 
                 yield Coroutine::value($buffer);
             } else {
@@ -462,7 +461,7 @@ class AsyncStream implements StreamInterface
      */
     protected static function chunkRead(AsyncStream $stream, $handle, ?int $length = null): string
     {
-        if ($stream->hasZlib && !empty($stream->contextInflate)) {
+        if ($stream->hasZlib && \is_resource($stream->contextInflate)) {
             while (!$stream->eof()) {
                 $chunk = @\inflate_add($stream->contextInflate, \fread($handle, 8192), \ZLIB_SYNC_FLUSH);
                 if ($chunk !== '') {
@@ -474,6 +473,7 @@ class AsyncStream implements StreamInterface
                 return @\inflate_add($stream->contextInflate, '', \ZLIB_FINISH);
             } finally {
                 $stream->contextInflate = null;
+                return null;
             }
         }
 
@@ -490,12 +490,12 @@ class AsyncStream implements StreamInterface
      */
     protected static function chunkWrite(AsyncStream $stream, $handle, $chunk): int
     {
-        if ($stream->hasZlib && !empty($stream->contextDeflate)) {
+        if ($stream->hasZlib && \is_resource($stream->contextDeflate)) {
             if ($chunk !== '') {
                 $chunk = @\deflate_add($stream->contextDeflate, $chunk, \ZLIB_SYNC_FLUSH);
             }
 
-            if ($chunk === '') {
+            if ($chunk == '') {
                 $chunk = @\deflate_add($stream->contextDeflate, '', \ZLIB_FINISH);
                 $stream->contextDeflate = null;
             }
@@ -529,6 +529,11 @@ class AsyncStream implements StreamInterface
                 ['httpId' => $this->hyperId, 'class' => __METHOD__, 'url' => $this->uri, 'written' => $written, 'timer' => $timer],
                 \hyper_loggerName()
             );
+
+            if ($this->hasZlib && \is_resource($this->contextDeflate)) {
+                yield Kernel::writeWait($handle, true);
+                self::chunkWrite($this, $handle, '');
+            }
 
             yield Coroutine::value($written);
         } else {
@@ -617,8 +622,15 @@ class AsyncStream implements StreamInterface
      */
     public static function create(string $content = '', bool $compress = false)
     {
-        $stream = new self($content, ($compress ? 'deflate' : null));
-        yield;
+        $stream = new self('', ($compress ? 'deflate' : null));
+        yield Kernel::writeWait($stream->resource);
+        self::chunkWrite($stream, $stream->resource, $content);
+        if ($stream->hasZlib && \is_resource($stream->contextDeflate)) {
+            yield Kernel::writeWait($stream->resource);
+            self::chunkWrite($stream, $stream->resource, '');
+        }
+
+        \rewind($stream->resource);
         return $stream;
     }
 
@@ -661,7 +673,7 @@ class AsyncStream implements StreamInterface
     public static function createDeflateFromFile(string $filename, string $mode = 'r')
     {
         $stream = \fopen($filename, $mode);
-        $instance = new self($stream);
+        $instance = new self($stream, 'deflate');
         $contents = yield $instance->getContents();
         $instance->close();
 
@@ -675,13 +687,12 @@ class AsyncStream implements StreamInterface
      * The stream MUST be readable and may be writable.
      *
      * @param resource $resource PHP resource to use as basis of stream.
-     * @param bool $compress the stream should be gzip, if available.
      *
      * @return AsyncStream
      */
-    public static function createFromResource($resource, bool $compress = false): AsyncStream
+    public static function createFromResource($resource): AsyncStream
     {
-        return new self($resource, ($compress ? 'deflate' : null));
+        return new self($resource);
     }
 
     /**
