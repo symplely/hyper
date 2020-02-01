@@ -471,11 +471,11 @@ class AsyncStream implements StreamInterface
      *
      * @param AsyncStream $stream
      * @param resource $handle
-     * @param integer|null $length
      * @return string
      */
     protected static function inflateRead(AsyncStream $stream, $handle)
     {
+        $chunk = false;
         if (false !== ($data = \fread($handle, 8192))) {
             $chunk = @\inflate_add($stream->contextInflate, $data, \ZLIB_SYNC_FLUSH);
             if ($chunk !== '') {
@@ -484,16 +484,10 @@ class AsyncStream implements StreamInterface
                     $stream->contextInflate = null;
                 }
 
-                return $chunk;
             }
         }
 
-        if (\strlen($data) <= 8192) {
-            $data .= @\inflate_add($stream->contextInflate, '', \ZLIB_FINISH);
-            $stream->contextInflate = null;
-        }
-
-        return $data;
+        return $chunk;
     }
 
     /**
