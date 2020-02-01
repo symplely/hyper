@@ -8,7 +8,6 @@ use Async\Request\Body;
 use Async\Request\Hyper;
 use Async\Request\Request;
 use Async\Request\Response;
-use Async\Request\AsyncStream;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Client\RequestExceptionInterface;
 use Psr\Http\Client\ClientExceptionInterface;
@@ -236,7 +235,7 @@ class HyperTest extends TestCase
 
     public function taskCompressingClientBody()
     {
-        $request = $this->http->useZlib(true)->request('GET', self::TARGET_URLS . 'gzip');
+        $request = $this->http->withEncoding()->request('GET', self::TARGET_URLS . 'gzip');
         $response = yield $this->http->sendRequest($request);
 
         $this->assertEquals(200, $response->getStatusCode());
@@ -257,7 +256,7 @@ class HyperTest extends TestCase
 
     public function taskDeflateResponse()
     {
-        $request = $this->http->useZlib(true)->request('GET', self::TARGET_URLS . 'deflate');
+        $request = $this->http->withEncoding()->request('GET', self::TARGET_URLS . 'deflate');
         $response = yield $this->http->sendRequest($request);
 
         $this->assertEquals(200, $response->getStatusCode());

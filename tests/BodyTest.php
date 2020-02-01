@@ -87,7 +87,7 @@ class BodyTest extends TestCase
 
     public function task_create_instance_from_stream()
     {
-        $fileBody = new Body(Body::FILE, new AsyncStream('Symplely!'));
+        $fileBody = new Body(Body::FILE, yield AsyncStream::create('Symplely!'));
 
         $this->assertEquals(
             "\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"document\"\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nSymplely!",
@@ -112,7 +112,7 @@ class BodyTest extends TestCase
 
     public function task_create_instance_from_stream_with_content_type_override()
     {
-        $fileBody = new Body(Body::FILE, new AsyncStream('Symplely!'), null, 'text/html');
+        $fileBody = new Body(Body::FILE, yield AsyncStream::create('Symplely!'), null, 'text/html');
 
         $this->assertEquals(
             "\r\n--BOUNDARY\r\nContent-Disposition: form-data; name=\"file\"; filename=\"document\"\r\nContent-Type: text/html\r\nContent-Length: 9\r\n\r\nSymplely!",

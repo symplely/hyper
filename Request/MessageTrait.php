@@ -47,7 +47,7 @@ trait MessageTrait
     public function getBody(): StreamInterface
     {
         if ($this->body === null) {
-            return new AsyncStream('');
+            return new AsyncStream();
         }
 
         return clone $this->body;
@@ -161,6 +161,6 @@ trait MessageTrait
             "bytes_max" => $bytes_max,
         ]);
 
-        print "{$preamble}\n{$debug}\n";
+        echo \sprintf("%s\n%s\n", $preamble, $debug);
     }
 }

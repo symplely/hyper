@@ -245,7 +245,7 @@ class AsyncStreamTest extends TestCase
 
     public function taskCopyReturnsDestinationStream()
     {
-        $readable = new AsyncStream('hello');
+        $readable = yield AsyncStream::create('hello');
 
         $r = fopen('php://temp', 'w+');
         $writable = new AsyncStream($r);
@@ -255,9 +255,7 @@ class AsyncStreamTest extends TestCase
         $this->assertSame($writable->getResource(), $ret->getResource());
         $this->assertSame('hello', yield $ret->getContents());
 
-        $readable->close();
-        $writable->close();
-        $ret->close();
+        yield shutdown();
     }
 
     public function testCopyReturnsDestinationStream()
@@ -267,14 +265,13 @@ class AsyncStreamTest extends TestCase
 
     public function taskCopyNullReturnsNewStream()
     {
-        $readable = new AsyncStream('hello world');
+        $readable = yield AsyncStream::create('hello world');
         $ret = yield AsyncStream::copyResource($readable);
 
         $this->assertNotSame($readable->getResource(), $ret->getResource());
         $this->assertSame('hello world', yield $ret->getContents());
 
-        $readable->close();
-        $ret->close();
+        yield shutdown();
     }
 
     public function testCopyNullReturnsNewStream()
@@ -300,7 +297,7 @@ class AsyncStreamTest extends TestCase
 
     public function taskBodyStream()
     {
-        $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
+        $request = $this->http->withEncoding()->request('POST', self::TARGET_URLS . 'anything');
         $request = $request->withHeader('Content-Type', 'application/json; charset="utf-8"');
         $request = $request->withBody(AsyncStream::createFromFile(__FILE__, 'rb'));
 
@@ -313,6 +310,8 @@ class AsyncStreamTest extends TestCase
             file_get_contents(__FILE__),
             \json_decode($content, true)['data']
         );
+
+        yield shutdown();
     }
 
     /**
@@ -322,31 +321,29 @@ class AsyncStreamTest extends TestCase
     {
         \coroutine_run($this->taskBodyStream());
     }
-/*
+
     public function taskDeflateBodyStream()
     {
-        $request = $this->http->useZlib(true)->request('POST', self::TARGET_URLS . 'anything');
-        $request = $request->withHeader('Content-Type', 'application/json; charset="utf-8"');
-        $request = $request->withBody(yield AsyncStream::createDeflateFromFile(__FILE__, 'rb+', true));
+        $request = $this->http->withEncoding()->request('POST', self::TARGET_URLS . 'anything');
+        $request = $request->withBody(yield AsyncStream::createDeflateFromFile(__FILE__, 'rb+'));
+        $request = $request->withHeader('Content-Type', 'application/x-gzip');
 
         $response = yield $this->http->sendRequest($request);
 
         $this->assertEquals(200, $response->getStatusCode());
         $content = yield $response->getBody()->getContents();
+        $content = json_decode($content, true)['data'];
 
-        $this->assertEquals(
-            file_get_contents(__FILE__),
-            \json_decode($content, true)['data']
-        );
+        $this->assertTrue(strpos($content, 'data:application/octet-stream;base64,') !== false);
+
+        yield shutdown();
     }
 
     /**
      * @requires extension zlib
      */
-    /*
     public function testDeflateBodyStream()
     {
         \coroutine_run($this->taskDeflateBodyStream());
     }
-    */
 }

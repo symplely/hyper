@@ -23,7 +23,7 @@ interface HyperInterface extends RequestMethodInterface
     /**
      * Add/check support for gzip and deflate response content encoding.
      */
-    public function useZlib(bool $onOff = false): HyperInterface;
+    public function withEncoding(): HyperInterface;
 
     /**
      * Controls how the `wait()` function operates.

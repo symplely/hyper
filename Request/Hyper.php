@@ -123,9 +123,9 @@ class Hyper implements HyperInterface
         $this->loggerName = '';
     }
 
-    public function useZlib(bool $onOff = false): HyperInterface
+    public function withEncoding(): HyperInterface
     {
-        if (\function_exists('inflate_init') && $onOff) {
+        if (\function_exists('inflate_init')) {
             $this->hasZlib = true;
         } else {
             $this->hasZlib = false;
@@ -527,10 +527,11 @@ class Hyper implements HyperInterface
         ];
 
         if ($request->getBody()->getSize()) {
-            if ($request->getBody() instanceof BodyInterface)
+            if ($request->getBody() instanceof BodyInterface) {
                 $context['http']['content'] = $request->getBody()->__toString();
-            else
+            } else {
                 $context['http']['content'] = yield $request->getBody()->getContents();
+            }
         }
 
         $ctx = \stream_context_create($context);
@@ -588,7 +589,7 @@ class Hyper implements HyperInterface
         $headers = \stream_get_meta_data($resource)['wrapper_data'];
 
         // Add task id to stream instance
-        $this->stream = $stream->taskPid($this->httpId);
+        $this->stream = $stream->withTask($this->httpId);
 
         if ($option['follow_location']) {
             $headers = $this->filterResponseHeaders($headers);
@@ -612,7 +613,7 @@ class Hyper implements HyperInterface
             $response = $response->withHeader($key, $value);
         }
 
-        while ($this->hasZlib && '' !== ($encoding = \strtolower($response->getHeaderLine('Content-Encoding')))) {
+        while ($encoding = \strtolower($response->getHeaderLine('Content-Encoding'))) {
             switch ($encoding) {
                 case 'gzip':
                     $encoding = \ZLIB_ENCODING_GZIP;
@@ -629,9 +630,12 @@ class Hyper implements HyperInterface
                 $response->getBody()->rewind();
             }
 
-            $response = $response->withBody($stream->inflate(true, (int) $encoding));
-            $response = $response->withoutHeader('Content-Encoding');
-            $response = $response->withoutHeader('Content-Length');
+            $response = $response->withBody($stream->inflate((int) $encoding));
+            if ($this->hasZlib) {
+                $response = $response->withoutHeader('Content-Encoding');
+                $response = $response->withoutHeader('Content-Length');
+            }
+
             break;
         }
 
