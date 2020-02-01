@@ -613,7 +613,9 @@ class Hyper implements HyperInterface
             $response = $response->withHeader($key, $value);
         }
 
-        while ($encoding = \strtolower($response->getHeaderLine('Content-Encoding'))) {
+        while (
+            $this->hasZlib && '' !== ($encoding = \strtolower($response->getHeaderLine('Content-Encoding')))
+        ) {
             switch ($encoding) {
                 case 'gzip':
                     $encoding = \ZLIB_ENCODING_GZIP;
@@ -631,10 +633,8 @@ class Hyper implements HyperInterface
             }
 
             $response = $response->withBody($stream->inflate((int) $encoding));
-            if ($this->hasZlib) {
-                $response = $response->withoutHeader('Content-Encoding');
-                $response = $response->withoutHeader('Content-Length');
-            }
+            $response = $response->withoutHeader('Content-Encoding');
+            $response = $response->withoutHeader('Content-Length');
 
             break;
         }

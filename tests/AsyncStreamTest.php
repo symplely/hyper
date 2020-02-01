@@ -304,14 +304,13 @@ class AsyncStreamTest extends TestCase
         $response = yield $this->http->sendRequest($request);
 
         $this->assertEquals(200, $response->getStatusCode());
-        $content = yield $response->getBody()->getContents();
+        $content = yield from $response->getBody()->getContents();
 
         $this->assertEquals(
             file_get_contents(__FILE__),
             \json_decode($content, true)['data']
         );
-
-        yield shutdown();
+        $response->getBody()->close();
     }
 
     /**
@@ -334,7 +333,7 @@ class AsyncStreamTest extends TestCase
         $content = yield $response->getBody()->getContents();
         $content = json_decode($content, true)['data'];
 
-        $this->assertTrue(strpos($content, 'data:application/octet-stream;base64,') !== false);
+        $this->assertContains('data:application/octet-stream;base64,', $content);
 
         yield shutdown();
     }

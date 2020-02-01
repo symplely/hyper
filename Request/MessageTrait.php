@@ -161,6 +161,6 @@ trait MessageTrait
             "bytes_max" => $bytes_max,
         ]);
 
-        echo \sprintf("%s\n%s\n", $preamble, $debug);
+        print "{$preamble}\n{$debug}\n";
     }
 }
