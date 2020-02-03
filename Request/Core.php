@@ -134,7 +134,11 @@ if (!\function_exists('mime_content_type')) {
 }
 
 if (!\function_exists('hyper')) {
-    \define('SYMPLELY_USER_AGENT', 'Symplely Hyper PHP/' . \PHP_VERSION);
+    \define(
+        'SYMPLELY_USER_AGENT',
+        'Symplely Hyper PHP/' . \PHP_VERSION .
+            ' OS/' . (\defined('PHP_OS_FAMILY') ? \PHP_OS_FAMILY : \php_uname('s'))
+    );
 
     // Content types for header data.
     \define('TYPE_HTML', BodyInterface::HTML_TYPE);
@@ -222,6 +226,7 @@ if (!\function_exists('hyper')) {
 
     function hyper_shutdown()
     {
+        yield \logger_commit(\hyper_loggerName());
         yield \logger_shutdown();
         \hyper_clear();
         yield \shutdown();
