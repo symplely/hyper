@@ -226,7 +226,7 @@ if (!\function_exists('hyper')) {
 
     function hyper_shutdown()
     {
-        yield \logger_commit(\hyper_loggerName());
+        //yield \logger_commit(\hyper_loggerName());
         yield \logger_shutdown();
         \hyper_clear();
         yield \shutdown();
