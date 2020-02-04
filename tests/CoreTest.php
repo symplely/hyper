@@ -16,7 +16,7 @@ class CoreTest extends TestCase
 {
     const TARGET_URL = "https://enev6g8on09tl.x.pipedream.net";
     const TARGET_URLS = "https://httpbin.org/";
-    const TARGET_URLS_ = "https://httpstat.us/";
+    const TARGET_URLS_ = "https://httpbin.org/status/";
 
     protected $websites = [
         'http://google.com/',
