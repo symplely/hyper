@@ -547,7 +547,7 @@ class Hyper implements HyperInterface
         $timer = \microtime(true) - $start;
 
         if (empty($this->httpId)) {
-            $this->httpId = yield Kernel::taskId();
+            $this->httpId = yield Kernel::getTask();
         }
 
         if (!\is_resource($resource)) {
