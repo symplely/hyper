@@ -108,7 +108,7 @@ const MULTI_TYPE = 'multipart/form-data';
 const JSON_TYPE = 'application/json';
 const FORM_TYPE = 'application/x-www-form-urlencoded';
 
- /**
+/**
  * This function works similar to coroutine `await()`
  *
  * Takes an `request` instance or `yield`ed coroutine of an request.
@@ -117,15 +117,20 @@ const FORM_TYPE = 'application/x-www-form-urlencoded';
  *
  * - This function needs to be prefixed with `yield`
  */
-yield  \request();
+yield \request();
 
- /**
- * This function works similar to coroutine `gatherOptions()`
+/**
+ * Run awaitable HTTP tasks in the requests set concurrently and block
+ * until the condition specified by count.
  *
- * Controls how the `fetch()` function operates.
- * `fetch()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
+ * This function works similar to `gatherWait()`.
+ *
+ * Controls how the `wait/fetch` functions operates.
+ * `await()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
+ *
+ * - This function needs to be prefixed with `yield`
  */
-\fetchOptions($count, $exception, $clearAborted);
+yield \fetch_await($requests, $count, $exception, $clearAborted);
 
 /**
  * This function works similar to coroutine `gather()`

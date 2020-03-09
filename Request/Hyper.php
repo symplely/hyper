@@ -147,12 +147,14 @@ class Hyper implements HyperInterface
     /**
      * @inheritdoc
      */
-    public static function waitOptions(
+    public static function await(
+        array $requests,
         int $count = 0,
         bool $exception = true,
         bool $clearAborted = true
-    ): void {
-        Kernel::gatherOptions($count, $exception, $clearAborted);
+    ) {
+        self::waitController();
+        return Kernel::gatherWait($requests, $count, $exception, $clearAborted);
     }
 
     /**

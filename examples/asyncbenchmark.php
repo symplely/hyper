@@ -16,8 +16,7 @@ function taskConcurrentRequests()
 
     print_r($request);
 
-    \fetchOptions(2);
-    $responses = yield \fetch($request);
+    $responses = yield \fetch_await($request, 2);
     print_r($responses);
 }
 

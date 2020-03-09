@@ -26,8 +26,13 @@ interface HyperInterface extends RequestMethodInterface
     public function withEncoding(): HyperInterface;
 
     /**
-     * Controls how the `wait()` function operates.
+     * Run awaitable HTTP tasks in the requests set concurrently and block until the condition specified by count.
      *
+     * This function works similar to `gatherWait()`.
+     * Controls how the `wait/fetch` functions operates.
+     * `await()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
+     *
+     * @param array $requests
      * @param int $count - If set, initiate a competitive race between multiple HTTP tasks.
      * - When amount of tasks as completed, the `wait` will return with HTTP task response.
      * - When `0` (default), will wait for all to complete.
@@ -37,13 +42,16 @@ interface HyperInterface extends RequestMethodInterface
      * - If `false`, exceptions are treated the same as successful response results,
      * and aggregated in the response list.
      * @param bool $clearAborted - If `true` (default), close/cancel/abort remaining result/responses
+     * @return array associative `$httpId` => `$response`
      *
-     * @throws \LengthException - If the number of tasks less than the desired $count.
+     * @throws \LengthException - If the number of HTTP tasks less than the desired $count.
      */
-    public static function waitOptions(
+    public static function await(
+        array $requests,
         int $count = 0,
         bool $exception = true,
-        bool $clearAborted = true);
+        bool $clearAborted = true
+    );
 
     /**
      * Run awaitable HTTP tasks in the httpId sequence concurrently.
@@ -57,7 +65,7 @@ interface HyperInterface extends RequestMethodInterface
      * @see https://docs.python.org/3.7/library/asyncio-task.html#asyncio.gather
      *
      * @param array $httpId
-     * @return array
+     * @return array associative `$taskId` => `$result`
      *
      * @throws \Exception - if not an HTTP task id
      */

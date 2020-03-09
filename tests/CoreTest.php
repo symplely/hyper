@@ -40,8 +40,7 @@ class CoreTest extends TestCase
         }
         $this->assertCount(\count($this->websites), $tasks);
 
-        \fetchOptions(3);
-        $responses = yield \fetch($tasks);
+        $responses = yield \fetch_await($tasks, 3);
 
         global $__uri__;
         $this->assertInstanceOf(\Async\Request\HyperInterface::class, $__uri__);
@@ -172,9 +171,8 @@ class CoreTest extends TestCase
             (new Request(Request::METHOD_OPTIONS, self::TARGET_URL))->withHeader('Content-Length', '4')
         );
 
-        \fetchOptions(0, false);
-        $responses = yield \fetch($pipedream, $httpBin, $bad);
-        $this->assertCount(2, $responses);
+        $responses = yield \fetch_await([$pipedream, $httpBin, $bad], 0, false);
+        $this->assertInstanceOf(\Throwable::class, $responses[$bad]);
 
         while (!\response_eof('bin')) {
             $echo = yield \response_stream('bin');
@@ -379,8 +377,7 @@ class CoreTest extends TestCase
         $this->assertFalse($response);
 
         $this->expectException(\LengthException::class);
-        \fetchOptions(3);
-        $responses = yield \fetch([1]);
+        $responses = yield \fetch_await([1], 3);
         yield \hyper_shutdown();
     }
 

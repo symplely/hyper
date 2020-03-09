@@ -16,7 +16,7 @@
 		"ext-json": "*",
         "symplely/http": "^1.1.0",
         "symplely/logger": "^1.0.9",
-        "symplely/coroutine": "^1.4.3"
+        "symplely/coroutine": "^1.7.0"
     },
     "autoload": {
         "files": [

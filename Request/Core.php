@@ -253,10 +253,15 @@ if (!\function_exists('hyper')) {
     }
 
     /**
-     * This function works similar to `gatherOptions()`.
-     * Controls how the `fetch()` function operates.
-     * `fetch()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
+     * Run awaitable HTTP tasks in the requests set concurrently and block until the condition specified by count.
      *
+     * This function works similar to `gatherWait()`.
+     * Controls how the `fetch()` function operates.
+     * `fetch_await()` will behave like **Promise** functions `All`, `Some`, `Any` in JavaScript.
+     *
+     * - This function needs to be prefixed with `yield`
+     *
+     * @param array $requests
      * @param int $count - Will wait for count to complete, `0` (default) All.
      * @param bool $exception - If `true` (default), immediately propagated
      * to the task that `yield`ed on wait(). Other awaitables will continue to run.
@@ -264,11 +269,12 @@ if (!\function_exists('hyper')) {
      * and aggregated in the response list.
      * @param bool $clearAborted - If `true` (default), close/cancel/abort remaining result/responses
      *
+     * @return array associative `$httpId` => `$response`
      * @throws \LengthException - If the number of HTTP tasks less than the desired $count.
      */
-    function fetchOptions(int $count = 0, bool $exception = true, bool $clearAborted = true)
+    function fetch_await(array $requests, int $count = 0, bool $exception = true, bool $clearAborted = true)
     {
-        Hyper::waitOptions($count, $exception, $clearAborted);
+        return Hyper::await($requests, $count, $exception, $clearAborted);
     }
 
     /**
@@ -277,10 +283,10 @@ if (!\function_exists('hyper')) {
      * Will pause current task and continue other tasks until
      * the supplied request HTTP task id's resolve to an response instance.
      *
-     * @return array<ResponseInterface>
-     * @throws \Exception - if not an HTTP task id
-     *
      * - This function needs to be prefixed with `yield`
+     *
+     * @return array associative `$httpId` => `$response`
+     * @throws \Exception - if not an HTTP task id
      */
     function fetch(...$requests)
     {
